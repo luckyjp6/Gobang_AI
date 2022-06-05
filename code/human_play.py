@@ -12,6 +12,8 @@ from game import Board, Game
 from mcts_pure import MCTSPlayer as MCTS_Pure
 from mcts_alphaZero import MCTSPlayer
 from policy_value_net_numpy import PolicyValueNetNumpy
+import pygame
+import sys
 # from policy_value_net import PolicyValueNet  # Theano and Lasagne
 # from policy_value_net_pytorch import PolicyValueNet  # Pytorch
 # from policy_value_net_tensorflow import PolicyValueNet # Tensorflow
@@ -28,19 +30,41 @@ class Human(object):
 
     def set_player_ind(self, p):
         self.player = p
+    
+    def is_valid_click(self, col, row, move, board):
+        """Check if placing a stone at (col, row) is valid on board
+        Args:
+            col (int): column number
+            row (int): row number
+            board (object): board grid (size * size matrix)
+        Returns:
+            boolean: True if move is valid, False otherewise
+        """
+        # TODO: check for ko situation (infinite back and forth)
+        if col < 0 or col >= board.width:
+            return False
+        if row < 0 or row >= board.height:
+            return False
+        return move in board.availables
+
+    def handle_click(self, board):
+        x, y = pygame.mouse.get_pos()
+        col, row = board.xy_to_colrow(x, y)
+        move = board.location_to_move([col,row])
+        if not self.is_valid_click(col, row, move, board):
+            pygame.mixer.Sound("wav/zoink.wav").play()
+            return self.get_action(board)
+        pygame.mixer.Sound("wav/click.wav").play()
+        return move
 
     def get_action(self, board):
-        try:
-            location = input("Your move: ")
-            if isinstance(location, str):  # for python3
-                location = [int(n, 10) for n in location.split(",")]
-            move = board.location_to_move(location)
-        except Exception as e:
-            move = -1
-        if move == -1 or move not in board.availables:
-            print("invalid move")
-            move = self.get_action(board)
-        return move
+        while True:
+            events = pygame.event.get()
+            for event in events:
+                if event.type == pygame.MOUSEBUTTONUP:
+                    return self.handle_click(board)
+                if event.type == pygame.QUIT:
+                    sys.exit()
 
     def __str__(self):
         return "Human {}".format(self.player)

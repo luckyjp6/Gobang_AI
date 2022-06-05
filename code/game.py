@@ -4,9 +4,20 @@
 """
 
 from __future__ import print_function
-from sre_parse import State
 import numpy as np
-import copy
+import pygame
+from pygame import gfxdraw
+import itertools
+
+
+# Constants
+BOARD_BROWN = (199, 105, 42)
+BOARD_WIDTH = 1000
+BOARD_BORDER = 75
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+STONE_RADIUS = 22
+DOT_RADIUS = 4
 
 class Board(object):
     """board for the game"""
@@ -18,7 +29,7 @@ class Board(object):
         # key: move as location on the board,
         # value: player as pieces type
         self.states = {}
-        # need how many squares in a row to win
+        # need how many pieces in a row to win
         self.n_in_row = int(kwargs.get('n_in_row', 5))
         self.players = [1, 2]  # player1 and player2
 
@@ -31,6 +42,38 @@ class Board(object):
         self.availables = list(range(self.width * self.height))
         self.states = {}
         self.last_move = -1
+    
+
+    def xy_to_colrow(self, x, y):
+        """Convert x,y coordinates to column and row number
+        Args:
+            x (float): x position
+            y (float): y position
+            size (int): size of grid
+        Returns:
+            Tuple[int, int]: column and row numbers of intersection
+        """
+        inc = (BOARD_WIDTH - 2 * BOARD_BORDER) / (self.width - 1)
+        x_dist = x - BOARD_BORDER
+        y_dist = y - BOARD_BORDER
+        col = int(round(x_dist / inc))
+        row = int(round(y_dist / inc))
+        return col, row
+
+
+    def colrow_to_xy(self, col, row):
+        """Convert column and row numbers to x,y coordinates
+        Args:
+            col (int): column number (horizontal position)
+            row (int): row number (vertical position)
+            size (int): size of grid
+        Returns:
+            Tuple[float, float]: x,y coordinates of intersection
+        """
+        inc = (BOARD_WIDTH - 2 * BOARD_BORDER) / (self.width - 1)
+        x = int(BOARD_BORDER + col * inc)
+        y = int(BOARD_BORDER + row * inc)
+        return x, y
 
     def move_to_location(self, move):
         """
@@ -40,7 +83,7 @@ class Board(object):
         0 1 2
         and move 5's location is (1,2)
         """
-        h = move // self.width # round down
+        h = move // self.width
         w = move % self.width
         return [h, w]
 
@@ -74,8 +117,8 @@ class Board(object):
         if len(self.states) % 2 == 0:
             square_state[3][:, :] = 1.0  # indicate the colour to play
         return square_state[:, ::-1, :]
-
-    def check(self, player, down, space = 1):
+    
+       def check(self, player, down, space = 1):
         states = self.states
         print("down: ", down, "space: ", space)
         up = down + 6*space
@@ -203,7 +246,7 @@ class Board(object):
         states = self.states
         n = self.n_in_row
 
-        moved = list(set(range(width * height)) - set(self.availables)) # record the squares that are occupied
+        moved = list(set(range(width * height)) - set(self.availables))
         if len(moved) < self.n_in_row *2-1:
             return False, -1
 
@@ -212,22 +255,18 @@ class Board(object):
             w = m % width
             player = states[m]
 
-            # row
             if (w in range(width - n + 1) and
                     len(set(states.get(i, -1) for i in range(m, m + n))) == 1):
                 return True, player
 
-            # column
             if (h in range(height - n + 1) and
                     len(set(states.get(i, -1) for i in range(m, m + n * width, width))) == 1):
                 return True, player
 
-            # right-up to left-down
             if (w in range(width - n + 1) and h in range(height - n + 1) and
                     len(set(states.get(i, -1) for i in range(m, m + n * (width + 1), width + 1))) == 1):
                 return True, player
 
-            # left-up to right-down
             if (w in range(n - 1, width) and h in range(height - n + 1) and
                     len(set(states.get(i, -1) for i in range(m, m + n * (width - 1), width - 1))) == 1):
                 return True, player
@@ -239,7 +278,7 @@ class Board(object):
         win, winner = self.has_a_winner()
         if win:
             return True, winner
-        elif not len(self.availables): # no more space to place chess
+        elif not len(self.availables):
             return True, -1
         return False, -1
 
@@ -247,35 +286,84 @@ class Board(object):
         return self.current_player
 
 
+def make_grid(size):
+        """Return list of (start_point, end_point pairs) defining gridlines
+        Args:
+            size (int): size of grid
+        Returns:
+            Tuple[List[Tuple[float, float]]]: start and end points for gridlines
+        """
+        start_points, end_points = [], []
+
+        # vertical start points (constant y)
+        xs = np.linspace(BOARD_BORDER, BOARD_WIDTH - BOARD_BORDER, size)
+        ys = np.full((size), BOARD_BORDER)
+        start_points += list(zip(xs, ys))
+
+        # horizontal start points (constant x)
+        xs = np.full((size), BOARD_BORDER)
+        ys = np.linspace(BOARD_BORDER, BOARD_WIDTH - BOARD_BORDER, size)
+        start_points += list(zip(xs, ys))
+
+        # vertical end points (constant y)
+        xs = np.linspace(BOARD_BORDER, BOARD_WIDTH - BOARD_BORDER, size)
+        ys = np.full((size), BOARD_WIDTH - BOARD_BORDER)
+        end_points += list(zip(xs, ys))
+
+        # horizontal end points (constant x)
+        xs = np.full((size), BOARD_WIDTH - BOARD_BORDER)
+        ys = np.linspace(BOARD_BORDER, BOARD_WIDTH - BOARD_BORDER, size)
+        end_points += list(zip(xs, ys))
+
+        return (start_points, end_points)
+
 class Game(object):
     """game server"""
 
+
     def __init__(self, board, **kwargs):
         self.board = board
+        pygame.init()
+        screen = pygame.display.set_mode((BOARD_WIDTH, BOARD_WIDTH))
+        self.screen = screen
+        self.font = pygame.font.SysFont("arial", 30)
+        self.start_points, self.end_points = make_grid(board.width)
+
+    def clear_screen(self):
+
+        # fill board and add gridlines
+        self.screen.fill(BOARD_BROWN)
+        for start_point, end_point in zip(self.start_points, self.end_points):
+            pygame.draw.line(self.screen, BLACK, start_point, end_point)
+
+        # add guide dots
+        guide_dots = [3, self.board.width // 2, self.board.height - 4]
+        for col, row in itertools.product(guide_dots, guide_dots):
+            x, y = self.board.colrow_to_xy(col, row)
+            gfxdraw.aacircle(self.screen, x, y, DOT_RADIUS, BLACK)
+            gfxdraw.filled_circle(self.screen, x, y, DOT_RADIUS, BLACK)
+
+        pygame.display.flip()
 
     def graphic(self, board, player1, player2):
         """Draw the board and show game info"""
-        width = board.width
-        height = board.height
-
-        print("Player", player1, "with X".rjust(3))
-        print("Player", player2, "with O".rjust(3))
-        print()
-        for x in range(width):
-            print("{0:8}".format(x), end='')
-        print('\r\n')
-        for i in range(height - 1, -1, -1):
-            print("{0:4d}".format(i), end='')
-            for j in range(width):
-                loc = i * width + j
-                p = board.states.get(loc, -1)
-                if p == player1:
-                    print('X'.center(8), end='')
-                elif p == player2:
-                    print('O'.center(8), end='')
-                else:
-                    print('_'.center(8), end='')
-            print('\r\n\r\n')
+        self.clear_screen()
+        moved = list(set(range(board.width * board.height)) - set(board.availables))
+        for m in moved:
+            col = m // board.width
+            row = m % board.width
+            x, y = self.board.colrow_to_xy(col, row)
+            if player1 == board.states.get(m, -1):
+                gfxdraw.aacircle(self.screen, x, y, STONE_RADIUS, BLACK)
+                gfxdraw.filled_circle(self.screen, x, y, STONE_RADIUS, BLACK)
+        for m in moved:
+            col = m // board.width
+            row = m % board.width
+            x, y = board.colrow_to_xy(col, row)
+            if player2 == board.states.get(m, -1):
+                gfxdraw.aacircle(self.screen, x, y, STONE_RADIUS, WHITE)
+                gfxdraw.filled_circle(self.screen, x, y, STONE_RADIUS, WHITE)
+        pygame.display.flip()
 
     def start_play(self, player1, player2, start_player=0, is_shown=1):
         """start a game between two players"""
@@ -283,23 +371,20 @@ class Game(object):
             raise Exception('start_player should be either 0 (player1 first) '
                             'or 1 (player2 first)')
         self.board.init_board(start_player)
-        p1, p2 = self.board.players # the number, 1 or 2
-        player1.set_player_ind(p1) # Human()
-        player2.set_player_ind(p2) # MCTSPlayer()
+        p1, p2 = self.board.players
+        player1.set_player_ind(p1)
+        player2.set_player_ind(p2)
         players = {p1: player1, p2: player2}
         if is_shown:
             self.graphic(self.board, player1.player, player2.player)
         while True:
             current_player = self.board.get_current_player()
             player_in_turn = players[current_player]
-            move = player_in_turn.get_action(self.board) # move will be an integer represent one of the square
+            move = player_in_turn.get_action(self.board)
             self.board.do_move(move)
-            if is_shown: # re-draw the board, can cancel this, the point is the state
+            if is_shown:
                 self.graphic(self.board, player1.player, player2.player)
             end, winner = self.board.game_end()
-
-            print(self.board.die_4_live_3(move, self.board))
-
             if end:
                 if is_shown:
                     if winner != -1:
@@ -328,7 +413,6 @@ class Game(object):
             if is_shown:
                 self.graphic(self.board, p1, p2)
             end, winner = self.board.game_end()
- 
             if end:
                 # winner from the perspective of the current player of each state
                 winners_z = np.zeros(len(current_players))
