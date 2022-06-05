@@ -118,7 +118,7 @@ class Board(object):
             square_state[3][:, :] = 1.0  # indicate the colour to play
         return square_state[:, ::-1, :]
     
-       def check(self, player, down, space = 1):
+    def check(self, player, down, space = 1):
         states = self.states
         print("down: ", down, "space: ", space)
         up = down + 6*space
@@ -139,7 +139,7 @@ class Board(object):
 
         if len(C) == 1: return C[0], End[0]
         return -1, -1    
-        
+    
     def judge(right, left, enemy, action, end, num):
         """
         return value:
