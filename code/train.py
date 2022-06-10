@@ -4,8 +4,8 @@ An implementation of the training pipeline of AlphaZero for Gomoku
 
 @author: Junxiao Song
 """
-
-from __future__ import print_function
+import torch
+# from __future__ import print_function
 import random
 import numpy as np
 from collections import defaultdict, deque
@@ -41,7 +41,7 @@ class TrainPipeline():
         self.epochs = 5  # num of train_steps for each update
         self.kl_targ = 0.02
         self.check_freq = 50
-        self.game_batch_num = 1500
+        self.game_batch_num = 500
         self.best_win_ratio = 0.0
         self.pure_mcts_playout_num = 1000 # num of simulations used for the pure mcts, which is used as the opponent to evaluate the trained policy
         if init_model:
@@ -174,12 +174,14 @@ class TrainPipeline():
                 if (i+1) % self.check_freq == 0:
                     print("current self-play batch: {}".format(i+1))
                     win_ratio = self.policy_evaluate()
-                    self.policy_value_net.save_model('./current_policy.model')
+                    torch.save(self.policy_value_net, './current_policy.pt')
+                    # self.policy_value_net.save_model('./current_policy.model')
                     if win_ratio > self.best_win_ratio:
                         print("New best policy!!!!!!!!")
                         self.best_win_ratio = win_ratio
                         # update the best_policy
-                        self.policy_value_net.save_model('./best_policy.model')
+                        torch.save(self.policy_value_net, './best_policy.pt')
+                        # self.policy_value_net.save_model('./best_policy.model')
                         if (self.best_win_ratio == 1.0 and
                                 self.pure_mcts_playout_num < 5000):
                             self.pure_mcts_playout_num += 1000
