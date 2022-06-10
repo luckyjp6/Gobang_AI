@@ -10,7 +10,7 @@ import random
 import numpy as np
 from collections import defaultdict, deque
 from game import Board, Game
-from mcts_pure import MCTSPlayer as MCTS_Pure
+from mcts_pure import MCTS_Pure
 from mcts_alphaZero import MCTSPlayer
 from policy_value_net_pytorch import PolicyValueNet
 
@@ -171,12 +171,12 @@ class TrainPipeline():
                 if (i+1) % self.check_freq == 0:
                     print("current self-play batch: {}".format(i+1))
                     win_ratio = self.policy_evaluate()
-                    torch.save(self.policy_value_net, './current_policy.pt')
+                    torch.save(self.policy_value_net.state_dict(), './current_policy.pt')
                     if win_ratio > self.best_win_ratio:
                         print("New best policy!!!!!!!!")
                         self.best_win_ratio = win_ratio
                         # update the best_policy
-                        torch.save(self.policy_value_net, './best_policy.pt')
+                        torch.save(self.policy_value_net.state_dict(), './best_policy.pt')
                         if (self.best_win_ratio == 1.0 and
                                 self.pure_mcts_playout_num < 5000):
                             self.pure_mcts_playout_num += 1000
