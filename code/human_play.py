@@ -15,6 +15,7 @@ from mcts_alphaZero import MCTSPlayer
 from policy_value_net_pytorch import PolicyValueNet
 import pygame
 import sys
+from os.path import exists
 
 class Human(object):
     """
@@ -48,9 +49,11 @@ class Human(object):
         col, row = board.xy_to_colrow(x, y)
         move = board.location_to_move([col,row])
         if not self.is_valid_click(col, row, move, board):
-            pygame.mixer.Sound("wav/zoink.wav").play()
+            if exists("wav/zoink.wav"):
+                pygame.mixer.Sound("wav/zoink.wav").play()
             return self.get_action(board)
-        pygame.mixer.Sound("wav/click.wav").play()
+        if exists("waav/click.wav"):
+            pygame.mixer.Sound("wav/click.wav").play()
         return move
 
     def get_action(self, board):
@@ -89,7 +92,7 @@ def run():
         #                                encoding='bytes')  # To support python3
         # best_policy = PolicyValueNet(width, height, policy_param)
         # best_policy = PolicyValueNetNumpy(width, height, policy_param)
-        best_policy = PolicyValueNet(width, height, 'best_policy.pt')
+        best_policy = PolicyValueNet(width, height, model_file)
         mcts_player = MCTSPlayer(best_policy.policy_value_fn,
                                  c_puct=5,
                                  n_playout=400)  # set larger n_playout for better performance
