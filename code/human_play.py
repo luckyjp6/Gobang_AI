@@ -93,7 +93,7 @@ def run():
         best_policy = PolicyValueNet(width, height, 'best_policy.model')
         mcts_player = MCTS_Train(
                                  c_puct=5,
-                                 n_playout=500)  # set larger n_playout for better performance
+                                 n_playout=1000)  # set larger n_playout for better performance
 
         # uncomment the following line to play with pure MCTS (it's much weaker even with a larger n_playout)
         # mcts_player = MCTS_Pure(c_puct=5, n_playout=1000)

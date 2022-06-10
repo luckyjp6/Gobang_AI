@@ -9,6 +9,12 @@ import numpy as np
 import copy
 from operator import itemgetter
 
+def softmax(x):
+    """calculate the exponential of each element and then return the average"""
+    probs = np.exp(x - np.max(x))
+    probs /= np.sum(probs)
+    return probs
+
 
 def rollout_policy_fn(board):
     """a coarse, fast version of policy_fn used in the rollout phase."""
@@ -23,7 +29,7 @@ def rollout_policy_fn(board):
     for new_action in board.availables:
         h = new_action // width
         w = new_action % width
-        score = board.die_4_live_3(new_action) - (abs(h-width/2) + abs(w-width/2))*0.03 + 2000
+        score = board.die_4_live_3(new_action) - (abs(h-width/2) + abs(w-width/2))*0.03 + 3000
         sum = sum + score
         action_probs[index] = score
         index = index + 1
@@ -44,7 +50,7 @@ def policy_value_fn(board):
     for new_action in board.availables:
         h = new_action // width
         w = new_action % width
-        score = board.die_4_live_3(new_action) - (abs(h-width/2) + abs(w-width/2))*0.03 + 2000
+        score = board.die_4_live_3(new_action) - (abs(h-width/2) + abs(w-width/2))*0.03 + 3000
         sum = sum + score
         action_probs[index] = score
         index = index + 1
@@ -148,7 +154,6 @@ class MCTS(object):
         node = self._root
         while(1):
             if node.is_leaf():
-
                 break
             # Greedily select next move.
             action, node = node.select(self._c_puct)
@@ -191,11 +196,19 @@ class MCTS(object):
 
         Return: the selected action
         """
+        # run simulation for #_n_playout times (the parameter of each node would change)
         for n in range(self._n_playout):
             state_copy = copy.deepcopy(state)
             self._playout(state_copy)
-        return max(self._root._children.items(),
-                   key=lambda act_node: act_node[1]._n_visits)[0]
+
+        # calculate the move probabilities based on visit counts at the root node
+        # only calculate the move probabilities of root node because we'll use update_with_move() to step forward
+        act_visits = [(act, node._n_visits)
+                      for act, node in self._root._children.items()]
+        acts, visits = zip(*act_visits)
+        act_probs = softmax(np.log(np.array(visits) + 1e-10))
+
+        return acts, act_probs
 
     def update_with_move(self, last_move):
         """Step forward in the tree, keeping everything we already know
@@ -222,12 +235,19 @@ class MCTS_Train(object):
     def reset_player(self):
         self.mcts.update_with_move(-1)
 
-    def get_action(self, board):
+    def get_action(self, board, return_prob=0):
         sensible_moves = board.availables
+        move_probs = np.zeros(board.width*board.height)
         if len(sensible_moves) > 0:
-            move = self.mcts.get_move(board)
+            # move = self.mcts.get_move(board)
+            acts, probs = self.mcts.get_move(board)
+            move_probs[list(acts)] = probs
+            move = np.random.choice(acts, p=probs)
             self.mcts.update_with_move(-1)
-            return move
+            if return_prob:
+                return move, move_probs
+            else:
+                return move
         else:
             print("WARNING: the board is full")
 

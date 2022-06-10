@@ -10,6 +10,8 @@ import copy
 from pygame import gfxdraw
 import itertools
 
+from mcts_for_train import MCTS_Train
+
 
 # Constants
 BOARD_BROWN = (199, 105, 42)
@@ -225,6 +227,7 @@ class Board(object):
 
         g = self.judge(right, left, enemy, new_action, end, num)
         score += standar_score[g]
+
         return score
         
     def die_4_live_3(self, new_action):
@@ -408,6 +411,43 @@ class Game(object):
             move, move_probs = player.get_action(self.board,
                                                  temp=temp,
                                                  return_prob=1)
+            # store the data
+            states.append(self.board.current_state())
+            mcts_probs.append(move_probs)
+            current_players.append(self.board.current_player)
+            # perform a move
+            self.board.do_move(move)
+            if is_shown:
+                self.graphic(self.board, p1, p2)
+            end, winner = self.board.game_end()
+            if end:
+                # winner from the perspective of the current player of each state
+                winners_z = np.zeros(len(current_players))
+                if winner != -1:
+                    winners_z[np.array(current_players) == winner] = 1.0
+                    winners_z[np.array(current_players) != winner] = -1.0
+                # reset MCTS root node
+                player.reset_player()
+                if is_shown:
+                    if winner != -1:
+                        print("Game end. Winner is player:", winner)
+                    else:
+                        print("Game end. Tie")
+                return winner, zip(states, mcts_probs, winners_z)
+
+    def start_coach_play(self, player, coach , is_shown=1, temp=1e-3):
+        self.board.init_board()
+        p1, p2 = self.board.players
+        states, mcts_probs, current_players = [], [], []
+        while True:
+            if p1 == self.board.current_player:
+                move, move_probs = player.get_action(self.board,
+                                                     temp=temp,
+                                                     return_prob=1)
+            else:
+                move, move_probs = coach.get_action(self.board, 1)
+                # move_probs = np.zeros(self.board.width*self.board.height)
+                # move_probs[move] = 1
             # store the data
             states.append(self.board.current_state())
             mcts_probs.append(move_probs)
