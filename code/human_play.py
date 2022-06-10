@@ -15,6 +15,7 @@ from mcts_alphaZero import MCTSPlayer
 from policy_value_net_pytorch import PolicyValueNet
 import pygame
 import sys
+from os.path import exists
 
 class Human(object):
     """
