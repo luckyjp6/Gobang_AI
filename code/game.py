@@ -121,11 +121,11 @@ class Board(object):
     
     def check(self, player, down, space = 1):
         states = self.states
-        print("down: ", down, "space: ", space)
+        #print("down: ", down, "space: ", space)
         up = down + 6*space
         new_down = down - 3*space
         if new_down < 0: new_down = down%space
-        print("new_down: ", new_down)
+        #print("new_down: ", new_down)
         Count = 0
         C = []
         End = []
@@ -141,7 +141,7 @@ class Board(object):
         if len(C) == 1: return C[0], End[0]
         return -1, -1    
     
-    def judge(right, left, enemy, action, end, num):
+    def judge(self, right, left, enemy, action, end, num):
         """
         return value:
             0: unuseful (like xoooox or xooox or less then 3 in a row)
@@ -161,22 +161,18 @@ class Board(object):
         elif num == 3:
             if (right == enemy or left == enemy): return 0
             else: return 1
-        
-    def die_4_live_3(self, new_action):
+    
+    def die_4_live_3_eval(self, player, enemy, new_action):
+        states = copy.deepcopy(self.states)
         width = self.width
         height = self.height
-        states = copy.deepcopy(self.states)
-        player = states[new_action]
-        enemy = 1
-        if player == 1: enemy = 2
-
         now_h = new_action // width
         now_w = new_action % width
 
         right = 0
         left = 0
         score = 0.0
-        standar_score = [0.0, 1.0, 1.0, 1000.0]
+        standar_score = [0.0, 5.0, 1.0, 1000.0]
         """
             0: unuseful (like xoooox or xooox or less then 3 in a row)
             1: live-3
@@ -229,8 +225,15 @@ class Board(object):
 
         g = self.judge(right, left, enemy, new_action, end, num)
         score += standar_score[g]
-
         return score
+        
+    def die_4_live_3(self, new_action):
+        player = self.get_current_player()
+        enemy = 1
+        if player == 1: enemy = 2
+        Attack_score = self.die_4_live_3_eval(player, enemy, new_action)
+        Defense_score = -self.die_4_live_3_eval(enemy, player, new_action)
+        return Attack_score + Defense_score
 
     def do_move(self, move):
         self.states[move] = self.current_player
