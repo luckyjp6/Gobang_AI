@@ -68,7 +68,7 @@ class Human(object):
 
 def run():
     n = 5
-    width, height = 10, 10# 8, 8
+    width, height = 15, 15
     # model_file = 'best_policy_8_8_5.model'
     model_file = 'best_policy.pt'
     try:
