@@ -177,7 +177,7 @@ class TrainPipeline():
                                       c_puct=self.c_puct,
                                       n_playout=self.n_playout,
                                       is_selfplay=0)
-            levels = [50, 300, 500, 800]
+            levels = [50, 150, 500]
             level = 0
             while True:
                 self.collect_coachplay_data(self.play_batch_size, Coach)
