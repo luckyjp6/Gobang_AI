@@ -120,113 +120,114 @@ class Board(object):
         if len(self.states) % 2 == 0:
             square_state[3][:, :] = 1.0  # indicate the colour to play
         return square_state[:, ::-1, :]
-    
-    def check(self, player, down, space = 1):
-        states = self.states
-        #print("down: ", down, "space: ", space)
-        up = down + 6*space
-        new_down = down - 3*space
-        if new_down < 0: new_down = down%space
-        #print("new_down: ", new_down)
-        Count = 0
-        C = []
-        End = []
 
-        for i in range(new_down, up, space):
-            if states.get(i, -1) != player: 
-                if (Count >= 3):
-                    End.append(i)
-                    C.append(Count)
-                Count = 0
-            else: Count += 1
-
-        if len(C) == 1: return C[0], End[0]
-        return -1, -1    
+    def state_to_string(self, player, now, down, up, space = 1):
+        s = ""
+        for i in range(now -down*space, now +(up+1)*space, space):
+            state = self.states.get(i, -1)
+            if state == -1:
+                s += "-"
+            elif state == player:
+                s += "o"
+            else:
+                s+= "x"
+        return s
     
-    def judge(self, right, left, enemy, action, end, num):
+    def judge(self, s, now):
         """
         return value:
-            0: unuseful (like xoooox or xooox or less then 3 in a row)
+            0: diedie-4
             1: live-3
             2: die-4
-            3: live-4
+            3: nearly live-4
+            4: live-4 and nearly 5
+            5: five-in-a-row
         """
-        if (num == -1): return 0
-        if not (end > action) and (end-num <= action): return 0
-        if (right == enemy and left == enemy): return 0
+        standar_score = [1, 5, 5, 100, 1000,10000]
 
-        # for 4 in a row
-        if num == 4:
-            # new action is included
-            if (right == enemy or left == enemy): return 2
-            else: return 3
-        elif num == 3:
-            if (right == enemy or left == enemy): return 0
-            else: return 1
-    
+        if (s.find("ooooo")!=-1): return standar_score[5]
+
+        f = s.find("-oooo-")
+        if (f!=-1 and f+4 >= now and f <= now): return standar_score[4]
+
+        f = s.find("ooo-o")
+        if (f!=-1 and f+4 >= now and f <= now): return standar_score[4]
+        f = s.find("oo-oo")
+        if (f!=-1 and f+4 >= now and f <= now): return standar_score[4]
+        f = s.find("o-ooo")
+        if (f!=-1 and f+4 >= now and f <= now): return standar_score[4]
+
+        f = s.find("xoooox")
+        if (f!=-1 and f+4 >= now and f <= now): return standar_score[0]
+
+        f = s.find("oooo")
+        if (f!=-1 and f+3 >= now and f <= now): return standar_score[2]
+
+        f = s.find("-ooo-")
+        # print("-ooo-", f)
+        if (f!=-1 and f+3 >= now and f <= now): return standar_score[1]
+
+        f = s.find("-oo-o-")
+        if (f!=-1 and f+4 >= now and f <= now): return standar_score[3]
+        f = s.find("-o-oo-")
+        if (f!=-1 and f+4 >= now and f <= now): return standar_score[3]
+        return 0
+
+    def head_and_tail(self, s, head, tail):
+        if head: s = "-" + s
+        else: s = "x" + s
+        if tail: s += "-"
+        else: s += "x"
+        return s
+
     def die_4_live_3_eval(self, player, enemy, new_action):
-        states = copy.deepcopy(self.states)
         width = self.width
         height = self.height
         now_h = new_action // width
         now_w = new_action % width
 
-        right = 0
-        left = 0
         score = 0.0
-        standar_score = [0.0, 5.0, 1.0, 1000.0]
         """
             0: unuseful (like xoooox or xooox or less then 3 in a row)
             1: live-3
             2: die-4
             3: live-4
-        """
-
+        """    
         # row
-        num, end = self.check(player, new_action)
-        if (num != -1):
-            if end-num-1 // width != now_h: left = enemy
-            else: left = states.get(end-num-1, -1)
-            if end // width != now_h: right = enemy
-            else: right = states.get(end, -1)
-
-        g = self.judge(right, left, enemy, new_action, end, num)
-        score += standar_score[g]
+        down = min(4, now_h)
+        up = min(4, height-1-now_h)
+        state_string = self.state_to_string(player, new_action, down, up, width)
+        state_string = self.head_and_tail(  state_string, 
+                                            now_h-4 > 0, 
+                                            now_h+4 < height-1)
+        score += self.judge(state_string, down+1)
 
         # col
-        num, end = self.check(player, new_action, width)
-        if (num != -1):
-            if ((end - (num+1)*width) % width != now_w): left = enemy
-            else: left = states.get(end - (num+1)*width, -1)
-            if end % width != now_w: right = enemy
-            else: right = states.get(end, -1)
+        down = min(4, now_w)
+        up = min(4, width-1-now_w)
+        state_string = self.state_to_string(player, new_action, down, up)
+        state_string = self.head_and_tail(  state_string, 
+                                            now_w-4 > 0, 
+                                            now_w+4 < width-1)
+        score += self.judge(state_string, down+1)
 
-        g = self.judge(right, left, enemy, new_action, end, num)
-        score += standar_score[g]
-        
+        # left-up to right-down
+        down = min(4, now_h, now_w)
+        up = min(4, height-1-now_h, width-1-now_w)
+        state_string = self.state_to_string(player, new_action, down, up, width+1)
+        state_string = self.head_and_tail(  state_string, 
+                                            now_w-4 > 0 and now_h-4 > 0, 
+                                            now_w+4 < width-1 and now_h+4 < height-1)
+        score += self.judge(state_string, down+1)
+
         # right-up to left-down 
-        num, end = self.check(player, new_action, width+1)
-        if (num != -1):
-            left = end - (num+1)*(width+1)
-            if ( (left // width - now_h) != (left % width - now_w)): left = enemy
-            else: left = states.get(left, -1)
-            if ( (end // width - now_h) != (end % width - now_w)): right = enemy
-            else: right = states.get(end, -1)
-
-        g = self.judge(right, left, enemy, new_action, end, num)
-        score += standar_score[g]
-
-        # left-up to right-down 
-        num, end = self.check(player, new_action, width-1)
-        if (num != -1):
-            left = end - (num+1)*(width-1)
-            if ( (left // width - now_h) != -(left % width - now_w)): left = enemy
-            else: left = states.get(left, -1)
-            if ( (end // width - now_h) != -(end % width - now_w)): right = enemy
-            else: right = states.get(end, -1)
-
-        g = self.judge(right, left, enemy, new_action, end, num)
-        score += standar_score[g]
+        down = min(4, now_h, width-1-now_w)
+        up = min(4, now_w, height-1-now_h)
+        state_string = self.state_to_string(player, new_action, down, up, width-1)
+        state_string = self.head_and_tail(  state_string, 
+                                            now_h-4 > 0 and now_w+4 < width-1, 
+                                            now_w-4 > 0 and now_h+4 < height-1)
+        score += self.judge(state_string, down+1)
 
         return score
         
