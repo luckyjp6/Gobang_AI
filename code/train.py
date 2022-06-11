@@ -161,7 +161,7 @@ class TrainPipeline():
             winner = self.game.start_play(current_mcts_player,
                                           Enemy,
                                           start_player=i % 2,
-                                          is_shown=0)
+                                          is_shown=1)
             win_cnt[winner] += 1
         print("num_playouts:{}, win: {}, lose: {}, tie:{}".format(
                 self.pure_mcts_playout_num,
@@ -186,7 +186,7 @@ class TrainPipeline():
                 if len(self.data_buffer) > self.batch_size:
                     loss, entropy = self.policy_update()
                 if (time+1) % self.check_freq == 0:
-                    print("current self-play batch: {}".format(time+1))
+                    print("current coach-play batch: {}".format(time+1))
                     win_cnt = self.policy_evaluate(n_games = 10, Enemy = Coach)
                     self.policy_value_net.save_model('./current_policy.model')
                     if win_cnt[2] < self.least_lose:
