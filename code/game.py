@@ -139,15 +139,12 @@ class Board(object):
                 s += "o"
             else:
                 s+= "x"
-        print(s)
         if ("ooooo" in s): return standar_score[3]
         if ("-oooo-" in s): return standar_score[2]
         if ("xoooo-" in s or "-oooox" in s): return standar_score[1]
         up = min(3, up) + down +1
         down = max(0, down-3)
-        print (down, up)
         s = s[down:up]
-        print("sub", s)
         if ("xoooox" in s): return 0
         if ("oooo" in s): return standar_score[1]
         if ("-ooo-" in s): return standar_score[0]
@@ -180,17 +177,14 @@ class Board(object):
         up = min(4, now_w, height-1-now_h)
         score += self.judge(player, new_action, down, up, width-1)
 
-        print(score)
         return score
         
     def die_4_live_3(self, new_action):
         player = self.get_current_player()
         enemy = 1
         if player == 1: enemy = 2
-        # Attack_score = self.die_4_live_3_eval(player, enemy, new_action)
+        Attack_score = self.die_4_live_3_eval(player, enemy, new_action)
         Defense_score = -self.die_4_live_3_eval(enemy, player, new_action)
-        print("\n")
-        Attack_score = 0
         return Attack_score + Defense_score
 
     def do_move(self, move):
