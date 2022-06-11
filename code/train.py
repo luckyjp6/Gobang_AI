@@ -177,7 +177,7 @@ class TrainPipeline():
                                       c_puct=self.c_puct,
                                       n_playout=self.n_playout,
                                       is_selfplay=0)
-            levels = [50, 300, 500, 800, 1000]
+            levels = [50, 300, 500, 800]
             level = 0
             while True:
                 self.collect_coachplay_data(self.play_batch_size, Coach)
@@ -205,6 +205,8 @@ class TrainPipeline():
                                 break
                         else:
                             self.check_freq = self.check_freq + 10
+                    else:
+                            self.check_freq = self.check_freq + 20
                 time = time + 1 
             
             self.mcts_player = MCTSPlayer(self.policy_value_net.policy_value_fn,
@@ -240,5 +242,5 @@ class TrainPipeline():
 
 
 if __name__ == '__main__':
-    training_pipeline = TrainPipeline('best_policy.model')
+    training_pipeline = TrainPipeline()
     training_pipeline.run()

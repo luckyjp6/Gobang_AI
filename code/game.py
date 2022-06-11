@@ -361,14 +361,14 @@ class Game(object):
             col = m // board.width
             row = m % board.width
             x, y = self.board.colrow_to_xy(col, row)
-            if player1 == board.states.get(m, -1):
+            if player1 == board.states[m]:
                 gfxdraw.aacircle(self.screen, x, y, STONE_RADIUS, BLACK)
                 gfxdraw.filled_circle(self.screen, x, y, STONE_RADIUS, BLACK)
         for m in moved:
             col = m // board.width
             row = m % board.width
             x, y = board.colrow_to_xy(col, row)
-            if player2 == board.states.get(m, -1):
+            if player2 == board.states[m]:
                 gfxdraw.aacircle(self.screen, x, y, STONE_RADIUS, WHITE)
                 gfxdraw.filled_circle(self.screen, x, y, STONE_RADIUS, WHITE)
         pygame.display.flip()
@@ -378,8 +378,11 @@ class Game(object):
         if start_player not in (0, 1):
             raise Exception('start_player should be either 0 (player1 first) '
                             'or 1 (player2 first)')
-        self.board.init_board(start_player)
+        self.board.init_board()
         p1, p2 = self.board.players
+        if start_player == 1:
+            p1, p2 = p2, p1
+
         player1.set_player_ind(p1)
         player2.set_player_ind(p2)
         players = {p1: player1, p2: player2}
@@ -440,6 +443,11 @@ class Game(object):
         self.board.init_board()
         p1, p2 = self.board.players
         states, mcts_probs, current_players = [], [], []
+        if np.random.randint(2) == 0:
+            p1, p2 = p2, p1
+        
+        player.set_player_ind(p1)
+        coach.set_player_ind(p2)
         while True:
             if p1 == self.board.current_player:
                 move, move_probs = player.get_action(self.board,
@@ -468,7 +476,10 @@ class Game(object):
                 player.reset_player()
                 if is_shown:
                     if winner != -1:
-                        print("Game end. Winner is player:", winner)
+                        if winner == p1:
+                            print("Game end. Winner is player: student")
+                        else:
+                            print("Game end. Winner is player: coach")
                     else:
                         print("Game end. Tie")
                 return winner, zip(states, mcts_probs, winners_z)

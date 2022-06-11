@@ -79,7 +79,7 @@ class PolicyValueNet():
 
         if model_file:
             if self.use_gpu:
-                net_params = torch.load(model_file, map_location=torch.device('cuda'))
+                net_params = torch.load(model_file, map_location=torch.device('gpu'))
             else:
                 net_params = torch.load(model_file, map_location=torch.device('cpu'))
             self.policy_value_net.load_state_dict(net_params)
