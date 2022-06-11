@@ -12,6 +12,7 @@ import pickle
 from game import Board, Game
 from mcts_for_train import MCTS_Train
 from mcts_alphaZero import MCTSPlayer
+from mcts_pure import MCTS_Pure
 from policy_value_net_pytorch import PolicyValueNet
 import pygame
 import sys
@@ -90,7 +91,7 @@ def run():
         #                                encoding='bytes')  # To support python3
         # best_policy = PolicyValueNet(width, height, policy_param)
         # best_policy = PolicyValueNetNumpy(width, height, policy_param)
-        best_policy = PolicyValueNet(width, height, 'best_policy.model')
+        best_policy = PolicyValueNet(width, height, 'best_policy.model', False)
         mcts_player = MCTS_Train(
                                  c_puct=5,
                                  n_playout=1000)  # set larger n_playout for better performance
