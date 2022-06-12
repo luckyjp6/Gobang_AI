@@ -33,7 +33,7 @@ class TrainPipeline():
         self.n_playout = 250  # num of simulations for each move
         self.c_puct = 5
         self.buffer_size = 10000
-        self.batch_size = 32  # mini-batch size for training  #512
+        self.batch_size = 128 # mini-batch size for training  #512
         self.data_buffer = deque(maxlen=self.buffer_size)
         self.play_batch_size = 1
         self.epochs = 5  # num of train_steps for each update
@@ -183,7 +183,8 @@ class TrainPipeline():
                     else:
                         self.check_freq = self.check_freq + 20
                 if ('loss' in locals() and 'entropy' in locals() and win_cnt in locals()) :
-                    print('')
+                    print('loss :{},entropy :{}, win :{}, loss :{}, tie :{}'.format(loss, entropy,win_cnt[1], win_cnt[2],win_cnt[-1]))
+                    exit()
                 time = time + 1 
             
             self.mcts_player = MCTSPlayer(self.policy_value_net.policy_value_fn,
