@@ -12,6 +12,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torch.autograd import Variable
 import numpy as np
+import torch_geometric as torch_g
 
 
 def set_learning_rate(optimizer, lr):
@@ -27,37 +28,39 @@ class Net(nn.Module):
 
         self.board_width = board_width
         self.board_height = board_height
-        # common layers
-        self.conv1 = nn.Conv2d( 4, # input size
-                                32, # output size
-                                kernel_size=3, # size of convolving kernel
-                                padding=1) # padding added to all four sides
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
-        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
-        # action policy layers
-        self.act_conv1 = nn.Conv2d(128, 4, kernel_size=1)
-        self.act_fc1 = nn.Linear(4*board_width*board_height, # input size
-                                 board_width*board_height) # output size
-        # state value layers
-        self.val_conv1 = nn.Conv2d(128, 2, kernel_size=1)
-        self.val_fc1 = nn.Linear(2*board_width*board_height, 64)
-        self.val_fc2 = nn.Linear(64, 1)
+        self.hidden_dim = 256
+        # action_size = board_width * board_height
+        
+        # GNN layers
+        self.GIN1 = torch_g.nn.GINConv(nn.Linear(1, self.hidden_dim))
+        self.GIN2 = torch_g.nn.GINConv(nn.Linear(self.hidden_dim, self.hidden_dim))
+        self.GIN3 = torch_g.nn.GINConv(nn.Linear(self.hidden_dim, self.hidden_dim))
+        
+        self.norm = nn.LayerNorm(self.hidden_dim)
+
+        self.Fc1 = nn.Linear(self.hidden_dim*3+1, self.hidden_dim*2)
+        self.Fc2 = nn.Linear(self.hidden_dim*2, self.hidden_dim)
+        self.fc_bn1 = nn.BatchNorm1d(self.hidden_dim*2)
+        self.fc_bn2 = nn.BatchNorm1d(self.hidden_dim)
+
+        self.act_Fc = nn.Linear(self.hidden_dim, 1)
+        self.val_Fc = nn.Linear(self.hidden_dim, 1)
 ################################################################################################################
-    def forward(self, state_input):
+    def forward(self, vertex, edge_index, batch_size):
         # common layers
-        x = F.relu(self.conv1(state_input))
-        x = F.relu(self.conv2(x))
-        x = F.relu(self.conv3(x))
+
+        x = F.relu(self.norm(self.GIN1(vertex, edge_index)))
+        y = F.relu(self.norm(self.GIN2(x, edge_index)))
+        z = F.relu(self.norm(self.GIN3(y, edge_index)))
+        
+        CONCAT = torch.cat([vertex, x, y, z], dim=-1)
         # action policy layers
-        x_act = F.relu(self.act_conv1(x))
-        x_act = x_act.view(-1, 4*self.board_width*self.board_height)
-        x_act = F.log_softmax(self.act_fc1(x_act))
-        # state value layers
-        x_val = F.relu(self.val_conv1(x))
-        x_val = x_val.view(-1, 2*self.board_width*self.board_height)
-        x_val = F.relu(self.val_fc1(x_val))
-        x_val = F.tanh(self.val_fc2(x_val))
-        return x_act, x_val
+        
+        z = F.dropout(F.relu(self.fc_bn1(self.Fc1(CONCAT))))
+        z = F.dropout(F.relu(self.fc_bn2(self.Fc2(z))))
+        act = F.log_softmax(self.act_Fc(z), dim=0)
+        val = torch.tanh(torch_g.nn.global_mean_pool(self.val_Fc(z), batch_size))
+        return act, val
 ################################################################################################################
 
 class PolicyValueNet():
@@ -79,26 +82,23 @@ class PolicyValueNet():
 
         if model_file:
             if self.use_gpu:
-                net_params = torch.load(model_file, map_location=torch.device('gpu'))
+                net_params = torch.load(model_file, map_location=torch.device('cuda'))
             else:
                 net_params = torch.load(model_file, map_location=torch.device('cpu'))
             self.policy_value_net.load_state_dict(net_params)
 
-    def policy_value(self, state_batch):
+    def policy_value(self, state_graph_batch):
         """
         input: a batch of states
         output: a batch of action probabilities and state values
         """
         if self.use_gpu:
-            state_batch = Variable(torch.FloatTensor(state_batch).cuda())
-            log_act_probs, value = self.policy_value_net(state_batch)
+            state_graph_batch = state_graph_batch
+            log_act_probs, value = self.policy_value_net(state_graph_batch.x, state_graph_batch.edge_index, state_graph_batch.batch)
             act_probs = np.exp(log_act_probs.data.cpu().numpy())
             return act_probs, value.data.cpu().numpy()
         else:
-            state_batch = Variable(torch.FloatTensor(state_batch))
-            log_act_probs, value = self.policy_value_net(state_batch)
-            act_probs = np.exp(log_act_probs.data.numpy())
-            return act_probs, value.data.numpy()
+            raise Exception("NO GPU?!")
 
     def policy_value_fn(self, board):
         """
@@ -107,16 +107,12 @@ class PolicyValueNet():
         action and the score of the board state
         """
         legal_positions = board.availables
-        current_state = np.ascontiguousarray(board.current_state().reshape(
-                -1, 4, self.board_width, self.board_height))
         if self.use_gpu:
-            log_act_probs, value = self.policy_value_net(
-                    Variable(torch.from_numpy(current_state)).cuda().float())
+            state_graph_batch = board.states_graph
+            log_act_probs, value = self.policy_value_net(state_graph_batch.x, state_graph_batch.edge_index, state_graph_batch.batch)
             act_probs = np.exp(log_act_probs.data.cpu().numpy().flatten())
         else:
-            log_act_probs, value = self.policy_value_net(
-                    Variable(torch.from_numpy(current_state)).float())
-            act_probs = np.exp(log_act_probs.data.numpy().flatten())
+            raise Exception("NO GPU?!")
         act_probs = zip(legal_positions, act_probs[legal_positions])
         value = value.data[0][0]
         return act_probs, value
@@ -125,13 +121,11 @@ class PolicyValueNet():
         """perform a training step"""
         # wrap in Variable
         if self.use_gpu:
-            state_batch = Variable(torch.FloatTensor(state_batch).cuda())
+            state_batch = state_batch
             mcts_probs = Variable(torch.FloatTensor(mcts_probs).cuda())
             winner_batch = Variable(torch.FloatTensor(winner_batch).cuda())
         else:
-            state_batch = Variable(torch.FloatTensor(state_batch))
-            mcts_probs = Variable(torch.FloatTensor(mcts_probs))
-            winner_batch = Variable(torch.FloatTensor(winner_batch))
+            raise Exception("NO GPU?!")
 
         # zero the parameter gradients
         self.optimizer.zero_grad()
@@ -139,10 +133,13 @@ class PolicyValueNet():
         set_learning_rate(self.optimizer, lr)
 
         # forward
-        log_act_probs, value = self.policy_value_net(state_batch)
+        log_act_probs, value = self.policy_value_net(state_batch.x, state_batch.edge_index, state_batch.batch)
         # define the loss = (z - v)^2 - pi^T * log(p) + c||theta||^2
         # Note: the L2 penalty is incorporated in optimizer
+        
         value_loss = F.mse_loss(value.view(-1), winner_batch)
+        log_act_probs = log_act_probs.view(16,82)
+        log_act_probs = log_act_probs[:,:-1]
         policy_loss = -torch.mean(torch.sum(mcts_probs*log_act_probs, 1))
         loss = value_loss + policy_loss
         # backward and optimize

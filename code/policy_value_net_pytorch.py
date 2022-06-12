@@ -125,13 +125,11 @@ class PolicyValueNet():
         """perform a training step"""
         # wrap in Variable
         if self.use_gpu:
-            state_batch = Variable(torch.FloatTensor(state_batch).cuda())
+            state_batch = Variable(state_batch).cuda()
             mcts_probs = Variable(torch.FloatTensor(mcts_probs).cuda())
             winner_batch = Variable(torch.FloatTensor(winner_batch).cuda())
         else:
-            state_batch = Variable(torch.FloatTensor(state_batch))
-            mcts_probs = Variable(torch.FloatTensor(mcts_probs))
-            winner_batch = Variable(torch.FloatTensor(winner_batch))
+            raise Exception("NO GPU?!")
 
         # zero the parameter gradients
         self.optimizer.zero_grad()

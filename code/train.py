@@ -4,6 +4,7 @@ An implementation of the training pipeline of AlphaZero for Gomoku
 
 @author: Junxiao Song
 """
+from sklearn.utils import shuffle
 import torch
 # from __future__ import print_function
 import random
@@ -13,7 +14,8 @@ from mcts_for_train import MCTS_Train
 from game import Board, Game
 from mcts_pure import MCTS_Pure
 from mcts_alphaZero import MCTSPlayer
-from policy_value_net_pytorch import PolicyValueNet
+from scalable_policy_net_pytorch import PolicyValueNet
+import torch_geometric as torch_g
 
 
 class TrainPipeline():
@@ -30,7 +32,7 @@ class TrainPipeline():
         self.learn_rate = 2e-3
         self.lr_multiplier = 1.0  # adaptively adjust the learning rate based on KL
         self.temp = 1.0  # the temperature param
-        self.n_playout = 300  # num of simulations for each move
+        self.n_playout = 250  # num of simulations for each move
         self.c_puct = 5
         self.buffer_size = 10000
         self.batch_size = 512  # mini-batch size for training
@@ -38,8 +40,8 @@ class TrainPipeline():
         self.play_batch_size = 1
         self.epochs = 5  # num of train_steps for each update
         self.kl_targ = 0.02
-        self.check_freq = 10
-        self.game_batch_num = 1000
+        self.check_freq = 100
+        self.game_batch_num = 100000
         self.best_win_ratio = 0.0
         self.least_lose = 10
         self.pure_mcts_playout_num = 1000 # num of simulations used for the pure mcts, which is used as the opponent to evaluate the trained policy
@@ -57,27 +59,6 @@ class TrainPipeline():
                                       n_playout=self.n_playout,
                                       is_selfplay=1)
 
-    def get_equi_data(self, play_data):
-        """augment the data set by rotation and flipping
-        play_data: [(state, mcts_prob, winner_z), ..., ...]
-        """
-        extend_data = []
-        for state, mcts_porb, winner in play_data:
-            for i in [1, 2, 3, 4]:
-                # rotate counterclockwise
-                equi_state = np.array([np.rot90(s, i) for s in state])
-                equi_mcts_prob = np.rot90(np.flipud(
-                    mcts_porb.reshape(self.board_height, self.board_width)), i)
-                extend_data.append((equi_state,
-                                    np.flipud(equi_mcts_prob).flatten(),
-                                    winner))
-                # flip horizontally
-                equi_state = np.array([np.fliplr(s) for s in equi_state])
-                equi_mcts_prob = np.fliplr(equi_mcts_prob)
-                extend_data.append((equi_state,
-                                    np.flipud(equi_mcts_prob).flatten(),
-                                    winner))
-        return extend_data
 
     def collect_selfplay_data(self, n_games=1):
         """collect self-play data for training"""
@@ -87,7 +68,6 @@ class TrainPipeline():
             play_data = list(play_data)[:]
             self.episode_len = len(play_data)
             # augment the data
-            play_data = self.get_equi_data(play_data)
             self.data_buffer.extend(play_data)
     
     def collect_coachplay_data(self, n_games=1, coach = None):
@@ -98,13 +78,12 @@ class TrainPipeline():
             play_data = list(play_data)[:]
             self.episode_len = len(play_data)
             # augment the data
-            play_data = self.get_equi_data(play_data)
             self.data_buffer.extend(play_data)
 
     def policy_update(self):
         """update the policy-value net"""
         mini_batch = random.sample(self.data_buffer, self.batch_size)
-        state_batch = [data[0] for data in mini_batch]
+        state_batch = torch_g.data.Batch.from_data_list([data[0] for data in mini_batch])
         mcts_probs_batch = [data[1] for data in mini_batch]
         winner_batch = [data[2] for data in mini_batch]
         old_probs, old_v = self.policy_value_net.policy_value(state_batch)
@@ -161,7 +140,7 @@ class TrainPipeline():
             winner = self.game.start_play(current_mcts_player,
                                           Enemy,
                                           start_player=i % 2,
-                                          is_shown=1)
+                                          is_shown=0)
             win_cnt[winner] += 1
         print("num_playouts:{}, win: {}, lose: {}, tie:{}".format(
                 self.pure_mcts_playout_num,
@@ -214,12 +193,12 @@ class TrainPipeline():
                                       n_playout=self.n_playout,
                                       is_selfplay=1)
 
-            self.check_freq = 100
+            self.check_freq = 3000
             for i in range(self.game_batch_num):
                 self.collect_selfplay_data(self.play_batch_size)
                 print("batch i:{}, episode_len:{}".format(
                         i+1, self.episode_len))
-                if len(self.data_buffer) > self.batch_size:
+                if len(self.data_buffer) > 5:
                     loss, entropy = self.policy_update()
                 # check the performance of the current model,
                 # and save the model params

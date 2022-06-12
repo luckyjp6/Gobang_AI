@@ -9,8 +9,9 @@ import pygame
 import copy
 from pygame import gfxdraw
 import itertools
-
+import torch_geometric as torch_g
 from mcts_for_train import MCTS_Train
+import torch
 
 
 # Constants
@@ -26,12 +27,49 @@ class Board(object):
     """board for the game"""
 
     def __init__(self, **kwargs):
-        self.width = int(kwargs.get('width', 8))
-        self.height = int(kwargs.get('height', 8))
+        self.width = int(kwargs.get('width', 9))
+        self.height = int(kwargs.get('height', 9))
         # board states stored as a dict,
         # key: move as location on the board,
         # value: player as pieces type
         self.states = {}
+        self.vertex = []
+        edge_u, edge_v = [], []
+        for x in range(self.width):
+            for y in range(self.height):
+                u = self.location_to_move([x,y])
+                self.vertex.append([0])
+                edge_u.append(self.width*self.height)
+                edge_v.append(u)
+                edge_v.append(self.width*self.height)
+                edge_u.append(u)
+                v = 0
+                if x > 0:
+                    v = self.location_to_move([x-1,y])
+                    edge_u.append(u)
+                    edge_v.append(v)
+                    edge_u.append(v)
+                    edge_v.append(u)
+                    if y > 0:
+                        v = self.location_to_move([x-1,y-1])
+                        edge_u.append(u)
+                        edge_v.append(v)
+                        edge_u.append(v)
+                        edge_v.append(u)
+                if y > 0:
+                    v = self.location_to_move([x,y-1])
+                    edge_u.append(u)
+                    edge_v.append(v)
+                    edge_u.append(v)
+                    edge_v.append(u)
+                    if x + 1 < self.width:
+                        v = self.location_to_move([x+1,y-1])
+                        edge_u.append(u)
+                        edge_v.append(v)
+                        edge_u.append(v)
+                        edge_v.append(u)
+        self.edge = torch.tensor([edge_u, edge_v], dtype = torch.long).cuda()
+        self.states_graph = torch_g.data.Data(x = torch.tensor(self.vertex + [[0]], dtype = torch.float).cuda(), edge_index = self.edge)
         # need how many pieces in a row to win
         self.n_in_row = int(kwargs.get('n_in_row', 5))
         self.players = [1, 2]  # player1 and player2
@@ -239,8 +277,17 @@ class Board(object):
         Defense_score = -self.die_4_live_3_eval(enemy, player, new_action)
         return Attack_score + Defense_score
 
+    def update_graph(self, move):
+        if self.current_player == 1:
+            self.vertex[move][0] = 1
+        else:
+            self.vertex[move][0] = -1
+
+        self.states_graph = torch_g.data.Data(x = torch.tensor(self.vertex + [[0]], dtype = torch.float).cuda(), edge_index = self.edge)
+
     def do_move(self, move):
         self.states[move] = self.current_player
+        self.update_graph(move)
         self.availables.remove(move)
         self.current_player = (
             self.players[0] if self.current_player == self.players[1]
@@ -293,7 +340,6 @@ class Board(object):
     def get_current_player(self):
         return self.current_player
 
-
 def make_grid(size):
         """Return list of (start_point, end_point pairs) defining gridlines
         Args:
@@ -331,10 +377,10 @@ class Game(object):
 
     def __init__(self, board, **kwargs):
         self.board = board
-        pygame.init()
-        screen = pygame.display.set_mode((BOARD_WIDTH, BOARD_WIDTH))
-        self.screen = screen
-        self.font = pygame.font.SysFont("arial", 30)
+        #pygame.init()
+        #screen = pygame.display.set_mode((BOARD_WIDTH, BOARD_WIDTH))
+        #self.screen = screen
+        #self.font = pygame.font.SysFont("arial", 30)
         self.start_points, self.end_points = make_grid(board.width)
 
     def clear_screen(self):
@@ -373,7 +419,7 @@ class Game(object):
                 gfxdraw.filled_circle(self.screen, x, y, STONE_RADIUS, WHITE)
         pygame.display.flip()
 
-    def start_play(self, player1, player2, start_player=0, is_shown=1):
+    def start_play(self, player1, player2, start_player=0, is_shown=0):
         """start a game between two players"""
         if start_player not in (0, 1):
             raise Exception('start_player should be either 0 (player1 first) '
@@ -402,7 +448,13 @@ class Game(object):
                         print("Game end. Winner is", players[winner])
                     else:
                         print("Game end. Tie")
-                return winner
+                if start_player == 1 and winner != -1:  
+                    if p1 == winner:
+                        return p2
+                    else:
+                        return p1
+                else:
+                    return winner
 
     def start_self_play(self, player, is_shown=0, temp=1e-3):
         """ start a self-play game using a MCTS player, reuse the search tree,
@@ -439,7 +491,7 @@ class Game(object):
                         print("Game end. Tie")
                 return winner, zip(states, mcts_probs, winners_z)
 
-    def start_coach_play(self, player, coach , is_shown=1, temp=1e-3):
+    def start_coach_play(self, player, coach , is_shown=0, temp=1e-3):
         self.board.init_board()
         p1, p2 = self.board.players
         states, mcts_probs, current_players = [], [], []
@@ -458,7 +510,7 @@ class Game(object):
                 # move_probs = np.zeros(self.board.width*self.board.height)
                 # move_probs[move] = 1
             # store the data
-            states.append(self.board.current_state())
+            states.append(self.board.states_graph)
             mcts_probs.append(move_probs)
             current_players.append(self.board.current_player)
             # perform a move
