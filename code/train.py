@@ -5,7 +5,7 @@ An implementation of the training pipeline of AlphaZero for Gomoku
 @author: Junxiao Song
 """
 from sklearn.utils import shuffle
-import torch
+# import torch
 # from __future__ import print_function
 import random
 import numpy as np
@@ -35,7 +35,7 @@ class TrainPipeline():
         self.n_playout = 250  # num of simulations for each move
         self.c_puct = 5
         self.buffer_size = 10000
-        self.batch_size = 512  # mini-batch size for training
+        self.batch_size = 16  # mini-batch size for training
         self.data_buffer = deque(maxlen=self.buffer_size)
         self.play_batch_size = 1
         self.epochs = 5  # num of train_steps for each update
