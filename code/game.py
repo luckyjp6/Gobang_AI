@@ -167,16 +167,17 @@ class Board(object):
             2: live-4
             3: five-in-a-row
         """
-        standar_score = [10, 1000, 2000]
+        standar_score = [100, 1000, 20000] # 一步擋得掉的(活三和死四和可以創造活4的)，兩步(活4)，直接贏。
         s = ""
-        for i in range(now -down*space, now +(up+1)*space, space):
+        for i in range(now - down*space, now + (up+1)*space, space):
             state = self.states.get(i, -1)
             if state == -1:
                 s += "-"
             elif state == player:
                 s += "o"
             else:
-                s+= "x"
+                s += "x"
+
         if ("ooooo" in s): return standar_score[2]
         if ("-oooo-" in s): return standar_score[1]
         if ("xoooox" in s): return 0
@@ -190,6 +191,7 @@ class Board(object):
         return 0
 
     def die_4_live_3_eval(self, player, enemy, new_action):
+        """記錄下了這一個旗子之後的分數"""
         width = self.width
         height = self.height
         now_h = new_action // width
@@ -222,9 +224,17 @@ class Board(object):
         player = self.get_current_player()
         enemy = 1
         if player == 1: enemy = 2
-        Attack_score = self.die_4_live_3_eval(player, enemy, new_action)
-        Defense_score = -self.die_4_live_3_eval(enemy, player, new_action)
-        return Attack_score + Defense_score
+        Attack_score = self.die_4_live_3_eval(player, enemy, new_action) # 我下這點的分數
+        Defense_score = self.die_4_live_3_eval(enemy, player, new_action) # 對方下這點的分數
+        if (Attack_score >= 20000.0):   # 會贏直接下
+            return 150000.0 
+        elif (Defense_score >= 20000.0 ):
+            return 100000.0             # 不下這點會讓我直接輸，那我一定要先擋
+        elif (Defense_score >= 1000):   # 對方下了會有活4
+            return 50000
+        else :
+            return Attack_score + Defense_score
+        
 
     def update_graph(self, move):
         if self.current_player == 1:
@@ -326,48 +336,48 @@ class Game(object):
 
     def __init__(self, board, **kwargs):
         self.board = board
-        #pygame.init()
-        #screen = pygame.display.set_mode((BOARD_WIDTH, BOARD_WIDTH))
-        #self.screen = screen
-        #self.font = pygame.font.SysFont("arial", 30)
+        # pygame.init()
+        # screen = pygame.display.set_mode((BOARD_WIDTH, BOARD_WIDTH))
+        # self.screen = screen
+        # self.font = pygame.font.SysFont("arial", 30)
         self.start_points, self.end_points = make_grid(board.width)
-    """
-        def clear_screen(self):
+    
+    # def clear_screen(self):
 
-            # fill board and add gridlines
-            self.screen.fill(BOARD_BROWN)
-            for start_point, end_point in zip(self.start_points, self.end_points):
-                pygame.draw.line(self.screen, BLACK, start_point, end_point)
+    #     # fill board and add gridlines
+    #     self.screen.fill(BOARD_BROWN)
+    #     for start_point, end_point in zip(self.start_points, self.end_points):
+    #         pygame.draw.line(self.screen, BLACK, start_point, end_point)
 
-            # add guide dots
-            guide_dots = [3, self.board.width // 2, self.board.height - 4]
-            for col, row in itertools.product(guide_dots, guide_dots):
-                x, y = self.board.colrow_to_xy(col, row)
-                gfxdraw.aacircle(self.screen, x, y, DOT_RADIUS, BLACK)
-                gfxdraw.filled_circle(self.screen, x, y, DOT_RADIUS, BLACK)
+    #     # add guide dots
+    #     guide_dots = [3, self.board.width // 2, self.board.height - 4]
+    #     for col, row in itertools.product(guide_dots, guide_dots):
+    #         x, y = self.board.colrow_to_xy(col, row)
+    #         gfxdraw.aacircle(self.screen, x, y, DOT_RADIUS, BLACK)
+    #         gfxdraw.filled_circle(self.screen, x, y, DOT_RADIUS, BLACK)
 
-            pygame.display.flip()
+    #     pygame.display.flip()
 
-        def graphic(self, board, player1, player2):
-            # Draw the board and show game info
-            self.clear_screen()
-            moved = list(set(range(board.width * board.height)) - set(board.availables))
-            for m in moved:
-                col = m // board.width
-                row = m % board.width
-                x, y = self.board.colrow_to_xy(col, row)
-                if player1 == board.states[m]:
-                    gfxdraw.aacircle(self.screen, x, y, STONE_RADIUS, BLACK)
-                    gfxdraw.filled_circle(self.screen, x, y, STONE_RADIUS, BLACK)
-            for m in moved:
-                col = m // board.width
-                row = m % board.width
-                x, y = board.colrow_to_xy(col, row)
-                if player2 == board.states[m]:
-                    gfxdraw.aacircle(self.screen, x, y, STONE_RADIUS, WHITE)
-                    gfxdraw.filled_circle(self.screen, x, y, STONE_RADIUS, WHITE)
-            pygame.display.flip()
-    """
+    # def graphic(self, board, player1, player2):
+    #     # Draw the board and show game info
+    #     self.clear_screen()
+    #     moved = list(set(range(board.width * board.height)) - set(board.availables))
+    #     for m in moved:
+    #         col = m // board.width
+    #         row = m % board.width
+    #         x, y = self.board.colrow_to_xy(col, row)
+    #         if player1 == board.states[m]:
+    #             gfxdraw.aacircle(self.screen, x, y, STONE_RADIUS, BLACK)
+    #             gfxdraw.filled_circle(self.screen, x, y, STONE_RADIUS, BLACK)
+    #     for m in moved:
+    #         col = m // board.width
+    #         row = m % board.width
+    #         x, y = board.colrow_to_xy(col, row)
+    #         if player2 == board.states[m]:
+    #             gfxdraw.aacircle(self.screen, x, y, STONE_RADIUS, WHITE)
+    #             gfxdraw.filled_circle(self.screen, x, y, STONE_RADIUS, WHITE)
+    #     pygame.display.flip()
+    
     def graphic(self, board, player1, player2):
         """Draw the board and show game info"""
         width = board.width
@@ -391,7 +401,7 @@ class Game(object):
                 else:
                     print('_'.center(8), end='')
             print('\r\n\r\n')
-
+    
     def start_play(self, player1, player2, start_player=0, is_shown=0):
         """start a game between two players"""
         if start_player not in (0, 1):
@@ -412,7 +422,7 @@ class Game(object):
             player_in_turn = players[current_player]
             move = player_in_turn.get_action(self.board)
             self.board.do_move(move)
-            self.board.die_4_live_3(move)
+            # self.board.die_4_live_3(move)
             if is_shown:
                 self.graphic(self.board, player1.player, player2.player)
             end, winner = self.board.game_end()
