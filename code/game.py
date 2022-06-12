@@ -160,14 +160,7 @@ class Board(object):
         return square_state[:, ::-1, :]
 
     def judge(self, player, now, down, up, space = 1):
-        """
-        return value:
-            0: live-3
-            1: die-4
-            2: live-4
-            3: five-in-a-row
-        """
-        standar_score = [100, 1000, 20000] # 一步擋得掉的(活三和死四和可以創造活4的)，兩步(活4)，直接贏。
+        standar_score = [100, 1000, 20000]
         s = ""
         for i in range(now - down*space, now + (up+1)*space, space):
             state = self.states.get(i, -1)
@@ -230,10 +223,12 @@ class Board(object):
             return 150000.0 
         elif (Defense_score >= 20000.0 ):
             return 100000.0             # 不下這點會讓我直接輸，那我一定要先擋
+        elif (Attack_score >= 1000.0):
+            return 75000
         elif (Defense_score >= 1000):   # 對方下了會有活4
             return 50000
         else :
-            return Attack_score + Defense_score
+            return Attack_score + Defense_score*0.5
         
 
     def update_graph(self, move):

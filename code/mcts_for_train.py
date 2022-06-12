@@ -31,7 +31,7 @@ def rollout_policy_fn(board):
     for new_action in board.availables:
         h = new_action // width
         w = new_action % width
-        score = board.die_4_live_3(new_action) - (abs(h-width/2) + abs(w-width/2))*0.03 + 3000
+        score = board.die_4_live_3(new_action) - (abs(h-width/2) + abs(w-width/2))*0.03
         sum = sum + score
         action_probs[index] = score
         index = index + 1
@@ -52,7 +52,7 @@ def policy_value_fn(board):
     for new_action in board.availables:
         h = new_action // width
         w = new_action % width
-        score = board.die_4_live_3(new_action) - (abs(h-width/2) + abs(w-width/2))*0.03 + 3000
+        score = board.die_4_live_3(new_action) - (abs(h-width/2) + abs(w-width/2))*0.03 + 1
         sum = sum + score
         action_probs[index] = score
         index = index + 1
@@ -240,10 +240,16 @@ class MCTS_Train(object):
     def get_action(self, board, return_prob=0):
         sensible_moves = board.availables
         move_probs = np.zeros(board.width*board.height)
+        def nor(probs):
+            res = [np.tan(i*np.pi/2) for i in probs]
+            normalized_res = res/np.linalg.norm(res)
+            return normalized_res
+
         if len(sensible_moves) > 0:
             # move = self.mcts.get_move(board)
             acts, probs = self.mcts.get_move(board)
             move_probs[list(acts)] = probs
+            move_probs = nor(move_probs)
             move = np.random.choice(acts, p=probs)
             self.mcts.update_with_move(-1)
             if return_prob:
