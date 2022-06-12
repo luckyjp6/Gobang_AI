@@ -17,7 +17,7 @@ from mcts_alphaZero import MCTSPlayer
 from scalable_policy_net_pytorch import PolicyValueNet
 import torch_geometric as torch_g
 import csv
-
+save_timing = 100
 
 class TrainPipeline():
     def __init__(self, init_model=None):
@@ -74,7 +74,7 @@ class TrainPipeline():
     def collect_coachplay_data(self, n_games=1, coach = None):
         """collect coach-play data for training"""
         for i in range(n_games):
-            winner, play_data = self.game.start_coach_play(self.mcts_player, coach, is_shown=0) # 這個 is shown 印出過程棋盤
+            winner, play_data = self.game.start_coach_play(self.mcts_player, coach, is_shown=1) # 這個 is shown 印出過程棋盤
 
             play_data = list(play_data)[:]
             self.episode_len = len(play_data)
@@ -176,6 +176,20 @@ class TrainPipeline():
                     tmp_list = []
                     tmp_list.extend((time, entropy))
                     train_entropy_result.append(tmp_list)
+
+                    if (time % save_timing ==0):
+                        with open('train_result/loss/loss_result'+str(int(time/save_timing))+'.csv', 'w', newline='') as csvfile:
+                            writer = csv.writer(csvfile,delimiter=' ')
+                            writer.writerow([time, loss])
+                            for row in train_loss_result:
+                                writer.writerow(row)
+
+                        with open('train_result/entropy/entropy_result'+str(int(time/save_timing))+'.csv', 'w', newline='') as csvfile:
+                            writer = csv.writer(csvfile,delimiter=' ')
+                            writer.writerow([time, entropy])
+                            for row in train_entropy_result:
+                                writer.writerow(row)
+
                 
                 if (time+1) % self.check_freq == 0:
                     win_cnt = self.policy_evaluate(n_games = 10, Enemy = Coach)
@@ -192,6 +206,26 @@ class TrainPipeline():
                     tmp_list = []
                     tmp_list.extend((time, win_cnt[-1])) #tie
                     train_tie_time_result.append(tmp_list)
+                    
+                    # 紀錄train檔案
+                    if (time%save_timing == 0):
+                        with open('train_result/win_times/win_times_result'+str(int(time/save_timing))+'.csv', 'w', newline='') as csvfile:
+                            writer = csv.writer(csvfile,delimiter=' ')
+                            writer.writerow([time, win_times])
+                            for row in train_win_times_result:
+                                writer.writerow(row)
+
+                        with open('train_result/loss_times/loss_times_result'+str(int(time/save_timing))+'.csv', 'w', newline='') as csvfile:
+                            writer = csv.writer(csvfile,delimiter=' ')
+                            writer.writerow([time, loss_times])
+                            for row in train_loss_times_result:
+                                writer.writerow(row)
+
+                        with open('train_result/tie_times/tie_times_result'+str(int(time/save_timing))+'.csv', 'w', newline='') as csvfile:
+                            writer = csv.writer(csvfile,delimiter=' ')
+                            writer.writerow([time, tie_times])
+                            for row in train_tie_times_result:
+                                writer.writerow(row)
 
                     if win_cnt[2] < self.least_lose:
                         print("New best policy!!!!!!!!")
@@ -214,41 +248,6 @@ class TrainPipeline():
                 
                 time = time + 1 
 
-            # 紀錄train檔案
-            with open('train_loss_result.csv', 'w', newline='') as csvfile:
-                writer = csv.writer(csvfile,delimiter=' ')
-                writer.writerow([time, loss])
-                for row in train_loss_result:
-                    writer.writerow(row)
-            csvFileToWrite.close()
-
-            with open('train_entropy_result.csv', 'w', newline='') as csvfile:
-                writer = csv.writer(csvfile,delimiter=' ')
-                writer.writerow([time, entropy])
-                for row in train_entropy_result:
-                    writer.writerow(row)
-            csvFileToWrite.close()
-
-            with open('train_win_times_result.csv', 'w', newline='') as csvfile:
-                writer = csv.writer(csvfile,delimiter=' ')
-                writer.writerow([time, win_times])
-                for row in train_win_times_result:
-                    writer.writerow(row)
-            csvFileToWrite.close()
-
-            with open('train_loss_times_result.csv', 'w', newline='') as csvfile:
-                writer = csv.writer(csvfile,delimiter=' ')
-                writer.writerow([time, loss_times])
-                for row in train_loss_times_result:
-                    writer.writerow(row)
-            csvFileToWrite.close()
-
-            with open('train_tie_times_result.csv', 'w', newline='') as csvfile:
-                writer = csv.writer(csvfile,delimiter=' ')
-                writer.writerow([time, tie_times])
-                for row in train_tie_times_result:
-                    writer.writerow(row)
-            csvFileToWrite.close()
 
             
             
@@ -275,9 +274,22 @@ class TrainPipeline():
                     tmp_list = []
                     tmp_list.extend((time,loss))
                     self_fight_loss_result.append(tmp_list)
+                    
                     tmp_list = []
                     tmp_list.extend((time, entropy))
                     self_fight_entropy_result.append(tmp_list)
+                    if (time %save_timing ==0):
+                        with open('self_fight_result/loss/loss_result'+str(int(time/save_timing))+'.csv', 'w', newline='') as csvfile:
+                            writer = csv.writer(csvfile,delimiter=' ')
+                            writer.writerow([time, loss])
+                            for row in self_fight_loss_result:
+                                writer.writerow(row)
+
+                        with open('self_fight_result/entropy/entropy_result'+str(int(time/save_timing))+'.csv', 'w', newline='') as csvfile:
+                            writer = csv.writer(csvfile,delimiter=' ')
+                            writer.writerow([time, entropy])
+                            for row in self_fight_entropy_result:
+                                writer.writerow(row)
 
                 # check the performance of the current model,
                 # and save the model params
@@ -301,6 +313,26 @@ class TrainPipeline():
                     tmp_list.extend((time, win_cnt[-1])) #tie
                     self_fight_tie_time_result.append(tmp_list)
 
+                    # 紀錄自我對打檔案
+                    if (time % save_timing == 0):
+                        with open('self_fight_result/win_times/win_times_result'+str(int(time/save_timing))+'.csv', 'w', newline='') as csvfile:
+                            writer = csv.writer(csvfile,delimiter=' ')
+                            writer.writerow([time, win_times])
+                            for row in self_fight_win_times_result:
+                                writer.writerow(row)
+
+                        with open('self_fight_result/loss_times/loss_time_result'+str(int(time/save_timing))+'.csv', 'w', newline='') as csvfile:
+                            writer = csv.writer(csvfile,delimiter=' ')
+                            writer.writerow([time, loss_times])
+                            for row in self_fight_loss_time_result:
+                                writer.writerow(row)
+
+                        with open('self_fight_result/tie_times/tie_time_result'+str(int(time/save_timing))+'.csv', 'w', newline='') as csvfile:
+                            writer = csv.writer(csvfile,delimiter=' ')
+                            writer.writerow([time, tie_times])
+                            for row in self_fight_tie_time_result:
+                                writer.writerow(row)
+
                     win_ratio = 1.0*(win_cnt[1] + 0.5*win_cnt[-1]) / 10
                     self.policy_value_net.save_model('./current_policy.model')
                     if win_ratio > self.best_win_ratio:
@@ -317,47 +349,10 @@ class TrainPipeline():
                             self.pure_mcts_playout_num += 1000
                             self.best_win_ratio = 0.0
 
-            
-            # 紀錄自我對打檔案
-            with open('self_fight_loss_result.csv', 'w', newline='') as csvfile:
-                writer = csv.writer(csvfile,delimiter=' ')
-                writer.writerow([time, loss])
-                for row in self_fight_loss_result:
-                    writer.writerow(row)
-            csvFileToWrite.close()
-
-            with open('self_fight_entropy_result.csv', 'w', newline='') as csvfile:
-                writer = csv.writer(csvfile,delimiter=' ')
-                writer.writerow([time, entropy])
-                for row in self_fight_entropy_result:
-                    writer.writerow(row)
-            csvFileToWrite.close()
-
-            with open('self_fight_win_times_result.csv', 'w', newline='') as csvfile:
-                writer = csv.writer(csvfile,delimiter=' ')
-                writer.writerow([time, win_times])
-                for row in self_fight_win_times_result:
-                    writer.writerow(row)
-            csvFileToWrite.close()
-
-            with open('self_fight_loss_time_result.csv', 'w', newline='') as csvfile:
-                writer = csv.writer(csvfile,delimiter=' ')
-                writer.writerow([time, loss_times])
-                for row in self_fight_loss_time_result:
-                    writer.writerow(row)
-            csvFileToWrite.close()
-
-            with open('self_fight_tie_time_result.csv', 'w', newline='') as csvfile:
-                writer = csv.writer(csvfile,delimiter=' ')
-                writer.writerow([time, tie_times])
-                for row in self_fight_tie_time_result:
-                    writer.writerow(row)
-            csvFileToWrite.close()
-
         except KeyboardInterrupt:
             print('\n\rquit')
 
 
 if __name__ == '__main__':
-    training_pipeline = TrainPipeline("best_policy.model") #"current_policy.model"
+    training_pipeline = TrainPipeline() #"current_policy.model"
     training_pipeline.run()
