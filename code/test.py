@@ -66,7 +66,8 @@ x = torch.tensor([[-1], [0], [1]], dtype=torch.float)
 
 data = torch_g.data.Data(x=x, edge_index=edge_index)
 dataset = torch_g.loader.DataLoader([data, states_graph], batch_size = 512, shuffle = True)
-t = torch_g.data.Batch.from_data_list([data])
 
-#for d in dataset:
- #   print(d)
+
+t = torch_g.data.Batch.from_data_list([data, data])
+print(t)
+print(t.num_graphs)
