@@ -73,7 +73,7 @@ class TrainPipeline():
     def collect_coachplay_data(self, n_games=1, coach = None):
         """collect coach-play data for training"""
         for i in range(n_games):
-            winner, play_data = self.game.start_coach_play(self.mcts_player, coach)
+            winner, play_data = self.game.start_coach_play(self.mcts_player, coach, is_shown=1)
 
             play_data = list(play_data)[:]
             self.episode_len = len(play_data)
@@ -140,7 +140,7 @@ class TrainPipeline():
             winner = self.game.start_play(current_mcts_player,
                                           Enemy,
                                           start_player=i % 2,
-                                          is_shown=0)
+                                          is_shown=1)
             win_cnt[winner] += 1
         print("num_playouts:{}, win: {}, lose: {}, tie:{}".format(
                 self.pure_mcts_playout_num,
@@ -156,7 +156,7 @@ class TrainPipeline():
                                       c_puct=self.c_puct,
                                       n_playout=self.n_playout,
                                       is_selfplay=0)
-            levels = [50, 150, 500]
+            levels = [100, 300, 500]
             level = 0
             while True:
                 self.collect_coachplay_data(self.play_batch_size, Coach)

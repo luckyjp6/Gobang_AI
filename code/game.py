@@ -167,7 +167,7 @@ class Board(object):
             2: live-4
             3: five-in-a-row
         """
-        standar_score = [1, 1, 10, 100]
+        standar_score = [10, 1000, 2000]
         s = ""
         for i in range(now -down*space, now +(up+1)*space, space):
             state = self.states.get(i, -1)
@@ -177,14 +177,15 @@ class Board(object):
                 s += "o"
             else:
                 s+= "x"
-        if ("ooooo" in s): return standar_score[3]
-        if ("-oooo-" in s): return standar_score[2]
-        if ("xoooo-" in s or "-oooox" in s): return standar_score[1]
+        if ("ooooo" in s): return standar_score[2]
+        if ("-oooo-" in s): return standar_score[1]
+        if ("xoooox" in s): return 0
+        if ("xoooo-" in s or "-oooox" in s): return standar_score[0]
         up = min(3, up) + down +1
         down = max(0, down-3)
         s = s[down:up]
-        if ("xoooox" in s): return 0
-        if ("oooo" in s): return standar_score[1]
+        if ("o-oo" in s): return standar_score[0]
+        if ("oo-o" in s): return standar_score[0]
         if ("-ooo-" in s): return standar_score[0]
         return 0
 
@@ -330,42 +331,66 @@ class Game(object):
         #self.screen = screen
         #self.font = pygame.font.SysFont("arial", 30)
         self.start_points, self.end_points = make_grid(board.width)
+    """
+        def clear_screen(self):
 
-    def clear_screen(self):
+            # fill board and add gridlines
+            self.screen.fill(BOARD_BROWN)
+            for start_point, end_point in zip(self.start_points, self.end_points):
+                pygame.draw.line(self.screen, BLACK, start_point, end_point)
 
-        # fill board and add gridlines
-        self.screen.fill(BOARD_BROWN)
-        for start_point, end_point in zip(self.start_points, self.end_points):
-            pygame.draw.line(self.screen, BLACK, start_point, end_point)
+            # add guide dots
+            guide_dots = [3, self.board.width // 2, self.board.height - 4]
+            for col, row in itertools.product(guide_dots, guide_dots):
+                x, y = self.board.colrow_to_xy(col, row)
+                gfxdraw.aacircle(self.screen, x, y, DOT_RADIUS, BLACK)
+                gfxdraw.filled_circle(self.screen, x, y, DOT_RADIUS, BLACK)
 
-        # add guide dots
-        guide_dots = [3, self.board.width // 2, self.board.height - 4]
-        for col, row in itertools.product(guide_dots, guide_dots):
-            x, y = self.board.colrow_to_xy(col, row)
-            gfxdraw.aacircle(self.screen, x, y, DOT_RADIUS, BLACK)
-            gfxdraw.filled_circle(self.screen, x, y, DOT_RADIUS, BLACK)
+            pygame.display.flip()
 
-        pygame.display.flip()
-
+        def graphic(self, board, player1, player2):
+            # Draw the board and show game info
+            self.clear_screen()
+            moved = list(set(range(board.width * board.height)) - set(board.availables))
+            for m in moved:
+                col = m // board.width
+                row = m % board.width
+                x, y = self.board.colrow_to_xy(col, row)
+                if player1 == board.states[m]:
+                    gfxdraw.aacircle(self.screen, x, y, STONE_RADIUS, BLACK)
+                    gfxdraw.filled_circle(self.screen, x, y, STONE_RADIUS, BLACK)
+            for m in moved:
+                col = m // board.width
+                row = m % board.width
+                x, y = board.colrow_to_xy(col, row)
+                if player2 == board.states[m]:
+                    gfxdraw.aacircle(self.screen, x, y, STONE_RADIUS, WHITE)
+                    gfxdraw.filled_circle(self.screen, x, y, STONE_RADIUS, WHITE)
+            pygame.display.flip()
+    """
     def graphic(self, board, player1, player2):
         """Draw the board and show game info"""
-        self.clear_screen()
-        moved = list(set(range(board.width * board.height)) - set(board.availables))
-        for m in moved:
-            col = m // board.width
-            row = m % board.width
-            x, y = self.board.colrow_to_xy(col, row)
-            if player1 == board.states[m]:
-                gfxdraw.aacircle(self.screen, x, y, STONE_RADIUS, BLACK)
-                gfxdraw.filled_circle(self.screen, x, y, STONE_RADIUS, BLACK)
-        for m in moved:
-            col = m // board.width
-            row = m % board.width
-            x, y = board.colrow_to_xy(col, row)
-            if player2 == board.states[m]:
-                gfxdraw.aacircle(self.screen, x, y, STONE_RADIUS, WHITE)
-                gfxdraw.filled_circle(self.screen, x, y, STONE_RADIUS, WHITE)
-        pygame.display.flip()
+        width = board.width
+        height = board.height
+
+        print("Player", player1, "with X".rjust(3))
+        print("Player", player2, "with O".rjust(3))
+        print()
+        for x in range(width):
+            print("{0:8}".format(x), end='')
+        print('\r\n')
+        for i in range(height - 1, -1, -1):
+            print("{0:4d}".format(i), end='')
+            for j in range(width):
+                loc = i * width + j
+                p = board.states.get(loc, -1)
+                if p == player1:
+                    print('X'.center(8), end='')
+                elif p == player2:
+                    print('O'.center(8), end='')
+                else:
+                    print('_'.center(8), end='')
+            print('\r\n\r\n')
 
     def start_play(self, player1, player2, start_player=0, is_shown=0):
         """start a game between two players"""
