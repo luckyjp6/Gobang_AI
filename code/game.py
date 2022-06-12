@@ -159,7 +159,15 @@ class Board(object):
             square_state[3][:, :] = 1.0  # indicate the colour to play
         return square_state[:, ::-1, :]
 
-    def state_to_string(self, player, now, down, up, space = 1):
+    def judge(self, player, now, down, up, space = 1):
+        """
+        return value:
+            0: live-3
+            1: die-4
+            2: live-4
+            3: five-in-a-row
+        """
+        standar_score = [1, 1, 10, 100]
         s = ""
         for i in range(now -down*space, now +(up+1)*space, space):
             state = self.states.get(i, -1)
@@ -169,103 +177,43 @@ class Board(object):
                 s += "o"
             else:
                 s+= "x"
-        return s
-    
-    def judge(self, s, now):
-        """
-        return value:
-            0: diedie-4
-            1: live-3
-            2: die-4
-            3: nearly live-4
-            4: live-4 and nearly 5
-            5: five-in-a-row
-        """
-        standar_score = [1, 5, 5, 100, 1000,10000]
-
-        if (s.find("ooooo")!=-1): return standar_score[5]
-
-        f = s.find("-oooo-")
-        if (f!=-1 and f+4 >= now and f <= now): return standar_score[4]
-
-        f = s.find("ooo-o")
-        if (f!=-1 and f+4 >= now and f <= now): return standar_score[4]
-        f = s.find("oo-oo")
-        if (f!=-1 and f+4 >= now and f <= now): return standar_score[4]
-        f = s.find("o-ooo")
-        if (f!=-1 and f+4 >= now and f <= now): return standar_score[4]
-
-        f = s.find("xoooox")
-        if (f!=-1 and f+4 >= now and f <= now): return standar_score[0]
-
-        f = s.find("oooo")
-        if (f!=-1 and f+3 >= now and f <= now): return standar_score[2]
-
-        f = s.find("-ooo-")
-        # print("-ooo-", f)
-        if (f!=-1 and f+3 >= now and f <= now): return standar_score[1]
-
-        f = s.find("-oo-o-")
-        if (f!=-1 and f+4 >= now and f <= now): return standar_score[3]
-        f = s.find("-o-oo-")
-        if (f!=-1 and f+4 >= now and f <= now): return standar_score[3]
+        if ("ooooo" in s): return standar_score[3]
+        if ("-oooo-" in s): return standar_score[2]
+        if ("xoooo-" in s or "-oooox" in s): return standar_score[1]
+        up = min(3, up) + down +1
+        down = max(0, down-3)
+        s = s[down:up]
+        if ("xoooox" in s): return 0
+        if ("oooo" in s): return standar_score[1]
+        if ("-ooo-" in s): return standar_score[0]
         return 0
-
-    def head_and_tail(self, s, head, tail):
-        if head: s = "-" + s
-        else: s = "x" + s
-        if tail: s += "-"
-        else: s += "x"
-        return s
 
     def die_4_live_3_eval(self, player, enemy, new_action):
         width = self.width
         height = self.height
         now_h = new_action // width
         now_w = new_action % width
-
+        
         score = 0.0
-        """
-            0: unuseful (like xoooox or xooox or less then 3 in a row)
-            1: live-3
-            2: die-4
-            3: live-4
-        """    
         # row
         down = min(4, now_h)
         up = min(4, height-1-now_h)
-        state_string = self.state_to_string(player, new_action, down, up, width)
-        state_string = self.head_and_tail(  state_string, 
-                                            now_h-4 > 0, 
-                                            now_h+4 < height-1)
-        score += self.judge(state_string, down+1)
+        score += self.judge(player, new_action, down, up, width)
 
         # col
         down = min(4, now_w)
         up = min(4, width-1-now_w)
-        state_string = self.state_to_string(player, new_action, down, up)
-        state_string = self.head_and_tail(  state_string, 
-                                            now_w-4 > 0, 
-                                            now_w+4 < width-1)
-        score += self.judge(state_string, down+1)
+        score += self.judge(player, new_action, down, up)
 
         # left-up to right-down
         down = min(4, now_h, now_w)
         up = min(4, height-1-now_h, width-1-now_w)
-        state_string = self.state_to_string(player, new_action, down, up, width+1)
-        state_string = self.head_and_tail(  state_string, 
-                                            now_w-4 > 0 and now_h-4 > 0, 
-                                            now_w+4 < width-1 and now_h+4 < height-1)
-        score += self.judge(state_string, down+1)
+        score += self.judge(player, new_action, down, up, width+1)
 
         # right-up to left-down 
         down = min(4, now_h, width-1-now_w)
         up = min(4, now_w, height-1-now_h)
-        state_string = self.state_to_string(player, new_action, down, up, width-1)
-        state_string = self.head_and_tail(  state_string, 
-                                            now_h-4 > 0 and now_w+4 < width-1, 
-                                            now_w-4 > 0 and now_h+4 < height-1)
-        score += self.judge(state_string, down+1)
+        score += self.judge(player, new_action, down, up, width-1)
 
         return score
         
@@ -439,6 +387,7 @@ class Game(object):
             player_in_turn = players[current_player]
             move = player_in_turn.get_action(self.board)
             self.board.do_move(move)
+            self.board.die_4_live_3(move)
             if is_shown:
                 self.graphic(self.board, player1.player, player2.player)
             end, winner = self.board.game_end()
