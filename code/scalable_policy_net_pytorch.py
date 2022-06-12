@@ -138,7 +138,7 @@ class PolicyValueNet():
         # Note: the L2 penalty is incorporated in optimizer
         
         value_loss = F.mse_loss(value.view(-1), winner_batch)
-        log_act_probs = log_act_probs.view(16,82)
+        log_act_probs = log_act_probs.view(int(state_batch.batch),self.board_height*self.board_width+1)
         log_act_probs = log_act_probs[:,:-1]
         policy_loss = -torch.mean(torch.sum(mcts_probs*log_act_probs, 1))
         loss = value_loss + policy_loss

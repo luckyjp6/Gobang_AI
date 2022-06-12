@@ -5,8 +5,6 @@ An implementation of the training pipeline of AlphaZero for Gomoku
 @author: Junxiao Song
 """
 from sklearn.utils import shuffle
-import torch
-# from __future__ import print_function
 import random
 import numpy as np
 from collections import defaultdict, deque
@@ -35,13 +33,13 @@ class TrainPipeline():
         self.n_playout = 250  # num of simulations for each move
         self.c_puct = 5
         self.buffer_size = 10000
-        self.batch_size = 512  # mini-batch size for training
+        self.batch_size = 32  # mini-batch size for training  #512
         self.data_buffer = deque(maxlen=self.buffer_size)
         self.play_batch_size = 1
         self.epochs = 5  # num of train_steps for each update
         self.kl_targ = 0.02
-        self.check_freq = 100
-        self.game_batch_num = 100000
+        self.check_freq = 10 #打架次數100
+        self.game_batch_num = 7000 #自我對亦次數
         self.best_win_ratio = 0.0
         self.least_lose = 10
         self.pure_mcts_playout_num = 1000 # num of simulations used for the pure mcts, which is used as the opponent to evaluate the trained policy
@@ -93,6 +91,7 @@ class TrainPipeline():
                     mcts_probs_batch,
                     winner_batch,
                     self.learn_rate*self.lr_multiplier)
+            
             new_probs, new_v = self.policy_value_net.policy_value(state_batch)
             kl = np.mean(np.sum(old_probs * (
                     np.log(old_probs + 1e-10) - np.log(new_probs + 1e-10)),
@@ -137,10 +136,7 @@ class TrainPipeline():
 
         win_cnt = defaultdict(int)
         for i in range(n_games):
-            winner = self.game.start_play(current_mcts_player,
-                                          Enemy,
-                                          start_player=i % 2,
-                                          is_shown=1)
+            winner = self.game.start_play(current_mcts_player,Enemy,start_player=i % 2,is_shown=0) 
             win_cnt[winner] += 1
         print("num_playouts:{}, win: {}, lose: {}, tie:{}".format(
                 self.pure_mcts_playout_num,
@@ -158,19 +154,19 @@ class TrainPipeline():
                                       is_selfplay=0)
             levels = [100, 300, 500]
             level = 0
+            
             while True:
                 self.collect_coachplay_data(self.play_batch_size, Coach)
                 print("batch i:{}, episode_len:{}".format(
                         time+1, self.episode_len))
                 if len(self.data_buffer) > self.batch_size:
                     loss, entropy = self.policy_update()
-                if (time+1) % self.check_freq == 0:
-                    print("current coach-play batch: {}".format(time+1))
+                if (time+1) % (self.check_freq*10) == 0:
                     win_cnt = self.policy_evaluate(n_games = 10, Enemy = Coach)
                     self.policy_value_net.save_model('./current_policy.model')
                     if win_cnt[2] < self.least_lose:
                         print("New best policy!!!!!!!!")
-                        self.least_lose = win_cnt[2]
+                        self.least_lose = win_cnt[2] # -1是平手，1是贏，2是輸
                         # update the best_policy
                         self.policy_value_net.save_model('./best_policy.model')
                         if (self.least_lose == 0):
@@ -185,7 +181,9 @@ class TrainPipeline():
                         else:
                             self.check_freq = self.check_freq + 10
                     else:
-                            self.check_freq = self.check_freq + 20
+                        self.check_freq = self.check_freq + 20
+                if ('loss' in locals() and 'entropy' in locals() and win_cnt in locals()) :
+                    print('')
                 time = time + 1 
             
             self.mcts_player = MCTSPlayer(self.policy_value_net.policy_value_fn,
@@ -221,5 +219,5 @@ class TrainPipeline():
 
 
 if __name__ == '__main__':
-    training_pipeline = TrainPipeline()
+    training_pipeline = TrainPipeline() #"current_policy.model"
     training_pipeline.run()
