@@ -33,15 +33,15 @@ class TrainPipeline():
         self.learn_rate = 2e-3
         self.lr_multiplier = 1.0  # adaptively adjust the learning rate based on KL
         self.temp = 1.0  # the temperature param
-        self.n_playout = 250  # num of simulations for each move
+        self.n_playout = 400  # num of simulations for each move
         self.c_puct = 5
         self.buffer_size = 10000
-        self.batch_size = 4 # mini-batch size for training  #512
+        self.batch_size = 512 # mini-batch size for training  #512
         self.data_buffer = deque(maxlen=self.buffer_size)
         self.play_batch_size = 1
         self.epochs = 5  # num of train_steps for each update
         self.kl_targ = 0.02
-        self.check_freq = 2 #打架次數100
+        self.check_freq = 70 #打架次數100
         self.game_batch_num = 7000 #自我對亦次數
         self.best_win_ratio = 0.0
         self.least_lose = 10
@@ -74,7 +74,7 @@ class TrainPipeline():
     def collect_coachplay_data(self, n_games=1, coach = None):
         """collect coach-play data for training"""
         for i in range(n_games):
-            winner, play_data = self.game.start_coach_play(self.mcts_player, coach, is_shown=1) # 這個 is shown 印出過程棋盤
+            winner, play_data = self.game.start_coach_play(self.mcts_player, coach, is_shown=0) # 這個 is shown 印出過程棋盤
 
             play_data = list(play_data)[:]
             self.episode_len = len(play_data)
@@ -155,7 +155,7 @@ class TrainPipeline():
                                       c_puct=self.c_puct,
                                       n_playout=self.n_playout,
                                       is_selfplay=0)
-            levels = [100, 300, 500]
+            levels = [150, 350]
             level = 0
             # 二維 list，存要寫出的資料
             train_loss_result = []
@@ -189,6 +189,7 @@ class TrainPipeline():
                             writer.writerow([time, entropy])
                             for row in train_entropy_result:
                                 writer.writerow(row)
+
 
                 
                 if (time+1) % self.check_freq == 0:
@@ -241,11 +242,6 @@ class TrainPipeline():
                                 Coach = MCTS_Train( c_puct = 5, n_playout = levels[level])
                             else:
                                 break
-                        else:
-                            self.check_freq = self.check_freq + 10
-                    else:
-                        self.check_freq = self.check_freq + 20
-                
                 time = time + 1 
 
 
@@ -256,7 +252,7 @@ class TrainPipeline():
                                       n_playout=self.n_playout,
                                       is_selfplay=1)
 
-            self.check_freq = 3000
+            self.check_freq = 150
 
             # 二維 list，存要寫出的資料
             self_fight_loss_result = []
@@ -335,19 +331,14 @@ class TrainPipeline():
 
                     win_ratio = 1.0*(win_cnt[1] + 0.5*win_cnt[-1]) / 10
                     self.policy_value_net.save_model('./current_policy.model')
-                    if win_ratio > self.best_win_ratio:
+                    if win_ratio >= 0.5:
                         print("New best policy!!!!!!!!")
-                        self.best_win_ratio = win_ratio
                         # update the best_policy
                         self.policy_value_net.save_model('./best_policy.model')
                         BEST_policy_value_net = PolicyValueNet(self.board_width,
                                                    self.board_height,
                                                    model_file='best_policy.model')
                         BEST = MCTSPlayer(policy_value_function=BEST_policy_value_net, c_puct=5, n_playout=400, is_selfplay=1)
-                        if (self.best_win_ratio == 1.0 and
-                                self.pure_mcts_playout_num < 5000):
-                            self.pure_mcts_playout_num += 1000
-                            self.best_win_ratio = 0.0
 
         except KeyboardInterrupt:
             print('\n\rquit')

@@ -28,10 +28,12 @@ def rollout_policy_fn(board):
     index = 0
     width = board.width
     sum = 0
+    
     for new_action in board.availables:
         h = new_action // width
         w = new_action % width
-        score = board.die_4_live_3(new_action) - (abs(h-width/2) + abs(w-width/2))*0.03
+        p = np.random.randint(1,10)
+        score = board.die_4_live_3(new_action)- abs(h-width/2)*abs(w-width/2)*0.005 +1
         sum = sum + score
         action_probs[index] = score
         index = index + 1
@@ -52,7 +54,9 @@ def policy_value_fn(board):
     for new_action in board.availables:
         h = new_action // width
         w = new_action % width
-        score = board.die_4_live_3(new_action) - (abs(h-width/2) + abs(w-width/2))*0.03 + 1
+        p = np.random.randint(1,10)
+        score = board.die_4_live_3(new_action) - abs(h-width/2)*abs(w-width/2)*0.005 +1
+        
         sum = sum + score
         action_probs[index] = score
         index = index + 1
@@ -238,6 +242,7 @@ class MCTS_Train(object):
         self.mcts.update_with_move(-1)
 
     def get_action(self, board, return_prob=0):
+        """回傳要下的位子"""
         sensible_moves = board.availables
         move_probs = np.zeros(board.width*board.height)
         def nor(probs):
@@ -249,9 +254,10 @@ class MCTS_Train(object):
             # move = self.mcts.get_move(board)
             acts, probs = self.mcts.get_move(board)
             move_probs[list(acts)] = probs
-            move_probs = nor(move_probs)
+            # move_probs = nor(move_probs)
             move = np.random.choice(acts, p=probs)
             self.mcts.update_with_move(-1)
+                
             if return_prob:
                 return move, move_probs
             else:
