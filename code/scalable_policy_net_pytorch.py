@@ -28,7 +28,7 @@ class Net(nn.Module):
 
         self.board_width = board_width
         self.board_height = board_height
-        self.hidden_dim = 512
+        self.hidden_dim = 256
         # action_size = board_width * board_height
         
         # GNN layers
