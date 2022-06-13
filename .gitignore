@@ -1,3 +1,4 @@
-AII.txt
-template.txt
 environment.yml
+*.model
+*.csv
+*.txt
