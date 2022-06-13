@@ -170,9 +170,12 @@ class TrainPipeline():
                         time+1, self.episode_len))
                 if len(self.data_buffer) > self.batch_size:
                     loss, entropy = self.policy_update()
+
+                    # record system - train
                     tmp_list = []
                     tmp_list.extend((time,loss))
                     train_loss_result.append(tmp_list)
+
                     tmp_list = []
                     tmp_list.extend((time, entropy))
                     train_entropy_result.append(tmp_list)
@@ -180,15 +183,17 @@ class TrainPipeline():
                     if (time % save_timing ==0):
                         with open('train_result/loss/loss_result'+str(int(time/save_timing))+'.csv', 'w', newline='') as csvfile:
                             writer = csv.writer(csvfile,delimiter=' ')
-                            writer.writerow([time, loss])
+                            writer.writerow(['time', 'loss'])
                             for row in train_loss_result:
                                 writer.writerow(row)
+                            train_loss_result.clear()
 
                         with open('train_result/entropy/entropy_result'+str(int(time/save_timing))+'.csv', 'w', newline='') as csvfile:
                             writer = csv.writer(csvfile,delimiter=' ')
-                            writer.writerow([time, entropy])
+                            writer.writerow(['time', 'entropy'])
                             for row in train_entropy_result:
                                 writer.writerow(row)
+                            train_entropy_result.clear()
 
 
                 
@@ -196,6 +201,7 @@ class TrainPipeline():
                     win_cnt = self.policy_evaluate(n_games = 10, Enemy = Coach)
                     self.policy_value_net.save_model('./current_policy.model')
 
+                    # record system - train
                     tmp_list = []
                     tmp_list.extend((time, win_cnt[1])) # win
                     train_win_times_result.append(tmp_list)
@@ -208,25 +214,27 @@ class TrainPipeline():
                     tmp_list.extend((time, win_cnt[-1])) #tie
                     train_tie_time_result.append(tmp_list)
                     
-                    # 紀錄train檔案
                     if (time%save_timing == 0):
                         with open('train_result/win_times/win_times_result'+str(int(time/save_timing))+'.csv', 'w', newline='') as csvfile:
                             writer = csv.writer(csvfile,delimiter=' ')
-                            writer.writerow([time, win_times])
+                            writer.writerow(['time', 'win_times'])
                             for row in train_win_times_result:
                                 writer.writerow(row)
+                            train_win_times_result.clear()
 
                         with open('train_result/loss_times/loss_times_result'+str(int(time/save_timing))+'.csv', 'w', newline='') as csvfile:
                             writer = csv.writer(csvfile,delimiter=' ')
-                            writer.writerow([time, loss_times])
+                            writer.writerow(['time', 'loss_times'])
                             for row in train_loss_times_result:
                                 writer.writerow(row)
+                            train_loss_times_result.clear()
 
                         with open('train_result/tie_times/tie_times_result'+str(int(time/save_timing))+'.csv', 'w', newline='') as csvfile:
                             writer = csv.writer(csvfile,delimiter=' ')
-                            writer.writerow([time, tie_times])
+                            writer.writerow(['time', 'tie_times'])
                             for row in train_tie_times_result:
                                 writer.writerow(row)
+                            train_tie_times_result.clear()
 
                     if win_cnt[2] < self.least_lose:
                         print("New best policy!!!!!!!!")
@@ -267,6 +275,7 @@ class TrainPipeline():
                         time+1, self.episode_len))
                 if len(self.data_buffer) > 5:
                     loss, entropy = self.policy_update()
+                    # record system - self fight
                     tmp_list = []
                     tmp_list.extend((time,loss))
                     self_fight_loss_result.append(tmp_list)
@@ -277,15 +286,17 @@ class TrainPipeline():
                     if (time %save_timing ==0):
                         with open('self_fight_result/loss/loss_result'+str(int(time/save_timing))+'.csv', 'w', newline='') as csvfile:
                             writer = csv.writer(csvfile,delimiter=' ')
-                            writer.writerow([time, loss])
+                            writer.writerow(['time', 'loss'])
                             for row in self_fight_loss_result:
                                 writer.writerow(row)
+                            self_fight_loss_result.clear()
 
                         with open('self_fight_result/entropy/entropy_result'+str(int(time/save_timing))+'.csv', 'w', newline='') as csvfile:
                             writer = csv.writer(csvfile,delimiter=' ')
-                            writer.writerow([time, entropy])
+                            writer.writerow(['time', 'entropy'])
                             for row in self_fight_entropy_result:
                                 writer.writerow(row)
+                            self_fight_entropy_result.clear()
 
                 # check the performance of the current model,
                 # and save the model params
@@ -296,7 +307,8 @@ class TrainPipeline():
                 if (time+1) % self.check_freq == 0:
                     print("current self-play batch: {}".format(time+1))
                     win_cnt = self.policy_evaluate(10, BEST)
-
+                    
+                    # record system - self fight   
                     tmp_list = []
                     tmp_list.extend((time, win_cnt[1])) # win
                     self_fight_win_time_result.append(tmp_list)
@@ -309,25 +321,27 @@ class TrainPipeline():
                     tmp_list.extend((time, win_cnt[-1])) #tie
                     self_fight_tie_time_result.append(tmp_list)
 
-                    # 紀錄自我對打檔案
                     if (time % save_timing == 0):
                         with open('self_fight_result/win_times/win_times_result'+str(int(time/save_timing))+'.csv', 'w', newline='') as csvfile:
                             writer = csv.writer(csvfile,delimiter=' ')
-                            writer.writerow([time, win_times])
+                            writer.writerow(['time', 'win_times'])
                             for row in self_fight_win_times_result:
                                 writer.writerow(row)
+                            self_fight_win_times_result.clear()
 
                         with open('self_fight_result/loss_times/loss_time_result'+str(int(time/save_timing))+'.csv', 'w', newline='') as csvfile:
                             writer = csv.writer(csvfile,delimiter=' ')
-                            writer.writerow([time, loss_times])
+                            writer.writerow(['time', 'loss_times'])
                             for row in self_fight_loss_time_result:
                                 writer.writerow(row)
+                            self_fight_loss_time_result.clear()
 
                         with open('self_fight_result/tie_times/tie_time_result'+str(int(time/save_timing))+'.csv', 'w', newline='') as csvfile:
                             writer = csv.writer(csvfile,delimiter=' ')
-                            writer.writerow([time, tie_times])
+                            writer.writerow(['time', 'tie_times'])
                             for row in self_fight_tie_time_result:
                                 writer.writerow(row)
+                            self_fight_tie_time_result.clear()
 
                     win_ratio = 1.0*(win_cnt[1] + 0.5*win_cnt[-1]) / 10
                     self.policy_value_net.save_model('./current_policy.model')
