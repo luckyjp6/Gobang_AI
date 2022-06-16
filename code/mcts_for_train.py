@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 A pure implementation of the Monte Carlo Tree Search (MCTS)
-升級 : 每次模擬的次數變多，要記錄他在甚麼時間點打敗了模擬100次的 ncts train，所有都打敗完之後會進入自我對弈，兩種都要記錄 lost function 
+升級 : 每次模擬的次數變多，要記錄他在甚麼時間點打敗了模擬100次的 cts train，所有都打敗完之後會進入自我對弈，兩種都要記錄 lost function 
 lost 那邊還有另外一個東西要記
 
 @author: Junxiao Song
