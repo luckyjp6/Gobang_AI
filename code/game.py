@@ -164,6 +164,7 @@ class Board(object):
         s = ""
         for i in range(now - down*space, now + (up+1)*space, space):
             state = self.states.get(i, -1)
+            if i == now: state = player
             if state == -1:
                 s += "-"
             elif state == player:
